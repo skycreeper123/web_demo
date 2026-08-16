@@ -1,0 +1,196 @@
+from __future__ import annotations
+
+import json
+from dataclasses import dataclass, field
+from pathlib import Path
+from typing import Any, Callable
+
+from web_demo.backend.app.core.config import IMAGE_PROMPT_KIND, load_prompt_config, merge_prompt_config
+from web_demo.backend.app.core.llm_client import OpenAICompatibleClient
+from web_demo.backend.app.utils.file_writer import ensure_dir, write_csv, write_json, write_text
+
+
+@dataclass
+class GeneratedAsset:
+    image: str
+    subject: str
+    scene_summary: str
+    zh_prompt: str
+    en_prompt: str
+    keep_unchanged: list[str] = field(default_factory=list)
+    avoid: list[str] = field(default_factory=list)
+    quality_check: list[str] = field(default_factory=list)
+    raw_response: str = ""
+    json_file: str = ""
+    txt_file: str = ""
+
+
+def _try_parse_json(text: str) -> dict[str, Any] | None:
+    cleaned = text.strip()
+    if cleaned.startswith("```"):
+        cleaned = cleaned.strip("`")
+        cleaned = cleaned.replace("json\n", "", 1).replace("JSON\n", "", 1)
+    try:
+        value = json.loads(cleaned)
+        if isinstance(value, dict):
+            return value
+    except json.JSONDecodeError:
+        pass
+    start = cleaned.find("{")
+    end = cleaned.rfind("}")
+    if start >= 0 and end > start:
+        try:
+            value = json.loads(cleaned[start : end + 1])
+            if isinstance(value, dict):
+                return value
+        except json.JSONDecodeError:
+            return None
+    return None
+
+
+def _format_placeholders(value: str, *, image_name: str, stem: str) -> str:
+    return str(value).format(image_name=image_name, stem=stem)
+
+
+def _mock_result(image_name: str, prompt_config: dict[str, Any]) -> dict[str, Any]:
+    stem = Path(image_name).stem.replace("_", " ").strip() or "image"
+    mock_config = prompt_config.get("mock_result", {})
+    return {
+        "subject": _format_placeholders(mock_config.get("subject", "{stem}"), image_name=image_name, stem=stem),
+        "scene_summary": _format_placeholders(
+            mock_config.get("scene_summary", "Mock prompt for {image_name}"),
+            image_name=image_name,
+            stem=stem,
+        ),
+        "zh_prompt": _format_placeholders(mock_config.get("zh_prompt", ""), image_name=image_name, stem=stem),
+        "en_prompt": _format_placeholders(mock_config.get("en_prompt", ""), image_name=image_name, stem=stem),
+        "keep_unchanged": list(mock_config.get("keep_unchanged", []) or []),
+        "avoid": list(mock_config.get("avoid", []) or []),
+        "quality_check": list(mock_config.get("quality_check", []) or []),
+    }
+
+
+def _format_text(payload: dict[str, Any]) -> str:
+    lines = [
+        f"Chinese Prompt:\n{payload.get('zh_prompt', '')}",
+        "",
+        f"English Prompt:\n{payload.get('en_prompt', '')}",
+        "",
+        "Keep Unchanged:\n" + "; ".join(payload.get("keep_unchanged", []) or []),
+        "",
+        "Avoid:\n" + "; ".join(payload.get("avoid", []) or []),
+        "",
+        "Quality Check:\n" + "; ".join(payload.get("quality_check", []) or []),
+    ]
+    return "\n".join(lines).strip() + "\n"
+
+
+def run_image_generation(
+    *,
+    job_id: str,
+    images: list[dict[str, str]],
+    output_root: Path,
+    api_key: str,
+    base_url: str,
+    model: str,
+    overwrite: bool,
+    use_mock: bool,
+    prompt_config: dict[str, Any] | None,
+    log: Callable[[str], None],
+    progress: Callable[[int, int], None],
+) -> dict[str, Any]:
+    client = OpenAICompatibleClient(base_url=base_url, api_key=api_key, model=model)
+    config = merge_prompt_config(IMAGE_PROMPT_KIND, prompt_config) if prompt_config else load_prompt_config(IMAGE_PROMPT_KIND)
+    system_prompt = str(config.get("system_prompt", "")).strip()
+    user_text = str(config.get("user_text", "")).strip()
+    job_output_dir = ensure_dir(output_root / job_id)
+    assets: list[GeneratedAsset] = []
+    failures: list[dict[str, str]] = []
+    total = len(images)
+
+    for index, image in enumerate(images, start=1):
+        name = image["name"]
+        data_url = image["dataUrl"]
+        stem = Path(name).stem
+        json_path = job_output_dir / f"{stem}.prompt.json"
+        txt_path = job_output_dir / f"{stem}.prompt.txt"
+
+        try:
+            if not overwrite and json_path.exists():
+                log(f"Skip existing: {name}")
+                continue
+
+            log(f"Processing: {name}")
+            if use_mock or not api_key.strip():
+                payload = _mock_result(name, config)
+                raw_response = json.dumps(payload, ensure_ascii=False, indent=2)
+            else:
+                response = client.chat_with_image(system_prompt, user_text, data_url)
+                raw_response = response.text
+                payload = _try_parse_json(raw_response) or {
+                    "subject": "",
+                    "scene_summary": "",
+                    "zh_prompt": raw_response,
+                    "en_prompt": "",
+                    "keep_unchanged": [],
+                    "avoid": [],
+                    "quality_check": [],
+                    "raw_response": raw_response,
+                }
+
+            normalized = {
+                "subject": payload.get("subject", ""),
+                "scene_summary": payload.get("scene_summary", ""),
+                "zh_prompt": payload.get("zh_prompt", ""),
+                "en_prompt": payload.get("en_prompt", ""),
+                "keep_unchanged": payload.get("keep_unchanged", []) or [],
+                "avoid": payload.get("avoid", []) or [],
+                "quality_check": payload.get("quality_check", []) or [],
+                "raw_response": raw_response,
+            }
+
+            write_json(json_path, normalized)
+            write_text(txt_path, _format_text(normalized))
+            assets.append(
+                GeneratedAsset(
+                    image=name,
+                    subject=normalized["subject"],
+                    scene_summary=normalized["scene_summary"],
+                    zh_prompt=normalized["zh_prompt"],
+                    en_prompt=normalized["en_prompt"],
+                    keep_unchanged=list(normalized["keep_unchanged"]),
+                    avoid=list(normalized["avoid"]),
+                    quality_check=list(normalized["quality_check"]),
+                    raw_response=raw_response,
+                    json_file=str(json_path),
+                    txt_file=str(txt_path),
+                )
+            )
+            log(f"Saved: {json_path.name} / {txt_path.name}")
+        except Exception as exc:
+            failures.append({"image": name, "error": str(exc)})
+            log(f"Failed: {name} -> {exc}")
+        finally:
+            progress(index, total)
+
+    summary_rows = [
+        {
+            "image": item.image,
+            "subject": item.subject,
+            "scene_summary": item.scene_summary,
+            "zh_prompt": item.zh_prompt,
+            "en_prompt": item.en_prompt,
+            "json_file": item.json_file,
+            "txt_file": item.txt_file,
+        }
+        for item in assets
+    ]
+    write_csv(job_output_dir / "prompts.csv", summary_rows)
+
+    return {
+        "job_id": job_id,
+        "output_dir": str(job_output_dir),
+        "items": [item.__dict__ for item in assets],
+        "failures": failures,
+        "summary_file": str(job_output_dir / "prompts.csv"),
+    }

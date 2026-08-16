@@ -1,0 +1,10 @@
+{
+  "subject": "demo",
+  "scene_summary": "Mock prompt for demo.png",
+  "zh_prompt": "",
+  "en_prompt": "",
+  "keep_unchanged": [],
+  "avoid": [],
+  "quality_check": [],
+  "raw_response": "{\n  \"subject\": \"demo\",\n  \"scene_summary\": \"Mock prompt for demo.png\",\n  \"zh_prompt\": \"\",\n  \"en_prompt\": \"\",\n  \"keep_unchanged\": [],\n  \"avoid\": [],\n  \"quality_check\": []\n}"
+}

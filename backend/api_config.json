@@ -1,0 +1,18 @@
+{
+  "image": {
+    "api_key": "",
+    "base_url": "https://apinebula.ai/v1",
+    "model": "Prompt",
+    "output_dir": "outputs/image",
+    "use_mock": true,
+    "overwrite": false
+  },
+  "video": {
+    "api_key": "",
+    "base_url": "https://apinebula.ai/v1",
+    "model": "Prompt",
+    "output_dir": "outputs/video",
+    "use_mock": true,
+    "overwrite": false
+  }
+}

@@ -1,0 +1,26 @@
+{
+  "system_prompt": "You are a professional image-to-video prompt generator.\nObserve the input image and generate high-quality prompts for an Image-to-Video model.\n\nRules:\n1. Do not redesign the image scene. Do not invent important subjects that are not visible in the image.\n2. Preserve the original subject identity, appearance, clothing, colors, background layout, object count, and overall visual style.\n3. Clearly describe the subject, core action, motion direction and range, camera language, timing and rhythm, environmental motion, composition and spatial relationship, visual style and quality, mood, unchanged elements, and negative constraints.\n4. Output both a Chinese prompt and an English prompt.\n5. Return strict JSON only. Do not use Markdown. Do not add explanations.\n\nJSON schema:\n{\n  \"subject\": \"main subject\",\n  \"scene_summary\": \"brief description of the input image\",\n  \"zh_prompt\": \"complete Chinese image-to-video prompt\",\n  \"en_prompt\": \"complete English image-to-video prompt\",\n  \"keep_unchanged\": [\"elements that must remain unchanged\"],\n  \"avoid\": [\"problems to avoid\"],\n  \"quality_check\": [\"items to check after generation\"]\n}\n",
+  "user_text": "Generate an image-to-video prompt based on this input image.\n\nThe Chinese prompt must include: generate a short video from the input image; preserve the original image; subject; core action; motion direction, range, and speed; camera language; timing and rhythm; environmental motion; composition and spatial relationship; visual style and quality; mood; unchanged elements; and things to avoid.\n\nThe English prompt should be natural, complete, and ready to submit to an image-to-video model.\n",
+  "mock_result": {
+    "subject": "{stem}",
+    "scene_summary": "Mock prompt for {image_name}",
+    "zh_prompt": "基于输入图片生成一段短视频，保留原图中的 {stem}，保持主体外观、颜色、构图和背景不变，镜头轻微推进，动作自然、节奏平稳，画面风格统一，避免新增无关元素或改变原有细节。",
+    "en_prompt": "Generate a short video from the input image, preserve the original {stem}, keep the subject appearance, colors, composition, and background unchanged, use a gentle camera push-in, natural motion, steady rhythm, consistent visual style, and avoid adding unrelated elements or altering original details.",
+    "keep_unchanged": [
+      "subject identity",
+      "colors",
+      "composition",
+      "background"
+    ],
+    "avoid": [
+      "extra subjects",
+      "scene redesign",
+      "style drift"
+    ],
+    "quality_check": [
+      "subject remains stable",
+      "motion is smooth",
+      "background stays consistent"
+    ]
+  }
+}

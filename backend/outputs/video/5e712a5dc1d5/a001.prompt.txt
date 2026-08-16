@@ -1,0 +1,20 @@
+Edit Goal:
+Use the references to refine the source video while preserving the original motion and scene continuity.
+
+Chinese Prompt:
+请基于源视频 a001.mp4 进行视频编辑，保留原始镜头运动、主体结构和场景连续性，参考图像 a001.jpg 的风格和细节进行增强，不改变原视频的叙事逻辑，重点强化质感、色彩与目标元素一致性，避免出现主体漂移、结构变形和时序跳变。
+
+English Prompt:
+Edit the source video a001.mp4 while preserving the original motion, subject structure, and scene continuity. Use the reference images a001.jpg to guide styling and detail enhancement without changing the original narrative flow. Emphasize texture, color consistency, and target visual elements, and avoid subject drift, structural distortion, or temporal flicker.
+
+Keep Unchanged:
+camera motion; scene continuity; subject identity
+
+Add Or Emphasize:
+reference styling cues; texture detail; color refinement
+
+Avoid:
+subject drift; flicker; over-redesign
+
+Quality Check:
+continuity is stable; reference traits are reflected; motion remains natural

@@ -1,0 +1,430 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Prompt Tool Studio</title>
+  <link rel="stylesheet" href="/style.css" />
+</head>
+<body>
+  <div class="page-bg"></div>
+  <main class="page-shell">
+    <header class="topbar card">
+      <div class="topbar-left">
+        <div class="brand-mark">PT</div>
+        <div>
+          <p class="eyebrow">Prompt Tool Studio</p>
+          <h1 id="viewTitle">首页</h1>
+          <p id="viewSubtitle" class="subtle">在两个工作流之间切换：图片 I2V Prompt 和视频编辑 Prompt。</p>
+        </div>
+      </div>
+      <div class="topbar-actions">
+        <button id="navHomeBtn" class="btn btn-ghost">首页</button>
+        <button id="navBackBtn" class="btn btn-ghost">返回上一级</button>
+      </div>
+    </header>
+
+    <section id="homeView" class="view">
+      <div class="home-grid">
+        <article class="feature-card card">
+          <div class="feature-copy">
+            <p class="panel-kicker">Module 01</p>
+            <h2>图片 -> I2V Prompt</h2>
+            <p>读取单张或批量图片，结合图片专用 Prompt 配置文件，生成适合图生视频模型的中英文 Prompt。</p>
+            <ul class="feature-list">
+              <li>支持拖拽图片和文件夹</li>
+              <li>支持编辑图片专用 Prompt 配置文件</li>
+              <li>输出 JSON、TXT 和汇总 CSV</li>
+            </ul>
+          </div>
+          <button id="goImageViewBtn" class="btn btn-primary">进入图片模块</button>
+        </article>
+
+        <article class="feature-card card">
+          <div class="feature-copy">
+            <p class="panel-kicker">Module 02</p>
+            <h2>视频 -> 视频编辑 Prompt</h2>
+            <p>选择视频目录和参考图目录，按同名规则自动匹配，预览配对结果后生成视频编辑类 Prompt。</p>
+            <ul class="feature-list">
+              <li>同名匹配：a001 -> a001 / a001_1 / a001_2</li>
+              <li>支持视频帧提取 + 参考图联合输入</li>
+              <li>支持编辑视频专用 Prompt 配置文件</li>
+            </ul>
+          </div>
+          <button id="goVideoViewBtn" class="btn btn-primary">进入视频模块</button>
+        </article>
+      </div>
+    </section>
+
+    <section id="imageView" class="view" hidden>
+      <section class="stats-grid">
+        <article class="stat card">
+          <span>图片</span>
+          <strong id="imageSelectedCount">0</strong>
+          <small>已选择</small>
+        </article>
+        <article class="stat card">
+          <span>状态</span>
+          <strong id="imageStatusBadge">待开始</strong>
+          <small id="imageJobMeta">未启动任务</small>
+        </article>
+        <article class="stat card">
+          <span>结果</span>
+          <strong id="imageResultCount">0</strong>
+          <small>文件输出</small>
+        </article>
+        <article class="stat card">
+          <span>输出目录</span>
+          <strong id="imageOutputRootValue">未设置</strong>
+          <small>图片模块</small>
+        </article>
+      </section>
+
+      <section class="workspace">
+        <aside class="sidebar">
+          <article class="card panel">
+            <div class="section-header">
+              <div>
+                <p class="panel-kicker">Step 01</p>
+                <h2>选择图片</h2>
+              </div>
+              <span class="chip">拖拽 / 文件夹</span>
+            </div>
+            <label class="dropzone" id="imageDropzone">
+              <input id="imageInput" type="file" accept="image/*" multiple webkitdirectory />
+              <strong>点击选择，或把图片拖到这里</strong>
+              <span>支持 JPG / PNG / WEBP，可直接选文件夹批量导入。</span>
+            </label>
+            <div id="imageFileList" class="stack-list empty">还没有选择图片</div>
+          </article>
+
+          <article class="card panel">
+            <div class="section-header">
+              <div>
+                <p class="panel-kicker">Step 02</p>
+                <h2>API 配置</h2>
+                <p class="panel-note">修改后可保存到 API 配置文件，下次启动可直接读取。</p>
+              </div>
+              <div class="section-actions">
+                <span class="chip chip-soft" id="imageModeBadge">Mock</span>
+                <button id="reloadImageApiConfigBtn" class="btn btn-ghost">重新读取</button>
+                <button id="saveImageApiConfigBtn" class="btn btn-primary">保存配置</button>
+              </div>
+            </div>
+            <div class="config-path">
+              <span>API 配置文件</span>
+              <code id="imageApiConfigPath">加载中...</code>
+            </div>
+            <div class="form-grid">
+              <label>
+                <span>API Key</span>
+                <input id="imageApiKey" class="input" type="password" placeholder="sk-..." />
+              </label>
+              <label>
+                <span>Base URL</span>
+                <input id="imageBaseUrl" class="input" type="text" placeholder="https://api.example.com/v1" />
+              </label>
+              <label>
+                <span>Model</span>
+                <input id="imageModel" class="input" type="text" placeholder="Prompt" />
+              </label>
+              <label>
+                <span>输出目录</span>
+                <input id="imageOutputDir" class="input" type="text" placeholder="D:\outputs\image_prompts" />
+              </label>
+            </div>
+            <div class="toggle-row">
+              <label class="toggle"><input id="imageUseMock" type="checkbox" checked /> 没有 Key 时启用 mock</label>
+              <label class="toggle"><input id="imageOverwrite" type="checkbox" /> 覆盖已有结果</label>
+            </div>
+          </article>
+        </aside>
+
+        <section class="mainpane">
+          <article class="card panel">
+            <div class="section-header">
+              <div>
+                <p class="panel-kicker">Step 03</p>
+                <h2>图片 Prompt 配置文件</h2>
+                <p class="panel-note">修改后直接保存到本地文件，图片模块后续默认读取这份配置。</p>
+              </div>
+              <div class="section-actions">
+                <button id="reloadImagePromptConfigBtn" class="btn btn-ghost">重新读取</button>
+                <button id="saveImagePromptConfigBtn" class="btn btn-primary">保存配置</button>
+              </div>
+            </div>
+            <div class="config-path">
+              <span>配置文件</span>
+              <code id="imagePromptConfigPath">加载中...</code>
+            </div>
+            <div class="prompt-grid">
+              <label class="prompt-field">
+                <span>System Prompt</span>
+                <textarea id="imageSystemPrompt" class="textarea" spellcheck="false"></textarea>
+              </label>
+              <label class="prompt-field">
+                <span>User Prompt</span>
+                <textarea id="imageUserPrompt" class="textarea" spellcheck="false"></textarea>
+              </label>
+            </div>
+          </article>
+
+          <article class="card panel">
+            <div class="section-header">
+              <div>
+                <p class="panel-kicker">Step 04</p>
+                <h2>运行与进度</h2>
+              </div>
+              <div class="section-actions">
+                <button id="reloadImageFilesBtn" class="btn btn-ghost">重载文件</button>
+                <button id="startImageBtn" class="btn btn-primary">开始生成</button>
+              </div>
+            </div>
+            <div class="progress-shell">
+              <div class="progress-track"><div id="imageProgressBar" class="progress-fill"></div></div>
+              <div class="progress-copy">
+                <strong id="imageProgressText">等待开始</strong>
+                <span id="imageProgressDetail">上传、生成、保存结果都会显示在这里。</span>
+              </div>
+            </div>
+          </article>
+
+          <div class="content-grid">
+            <article class="card panel">
+              <div class="section-header">
+                <div>
+                  <p class="panel-kicker">Live</p>
+                  <h2>日志</h2>
+                </div>
+                <button id="refreshImageJobBtn" class="btn btn-ghost">刷新</button>
+              </div>
+              <pre id="imageLogBox" class="log-box">暂无日志</pre>
+            </article>
+
+            <article class="card panel">
+              <div class="section-header">
+                <div>
+                  <p class="panel-kicker">Output</p>
+                  <h2>结果文件</h2>
+                </div>
+                <button id="openImageOutputBtn" class="btn btn-ghost">打开结果文件夹</button>
+              </div>
+              <div id="imageOutputList" class="output-list empty">运行后会显示生成的文件</div>
+            </article>
+          </div>
+        </section>
+      </section>
+    </section>
+
+    <section id="videoView" class="view" hidden>
+      <section class="stats-grid">
+        <article class="stat card">
+          <span>视频</span>
+          <strong id="videoSelectedCount">0</strong>
+          <small>已选择</small>
+        </article>
+        <article class="stat card">
+          <span>参考图</span>
+          <strong id="referenceSelectedCount">0</strong>
+          <small>已选择</small>
+        </article>
+        <article class="stat card">
+          <span>匹配</span>
+          <strong id="videoMatchBadge">未扫描</strong>
+          <small id="videoMatchMeta">等待扫描</small>
+        </article>
+        <article class="stat card">
+          <span>结果</span>
+          <strong id="videoResultCount">0</strong>
+          <small>文件输出</small>
+        </article>
+      </section>
+
+      <section class="workspace">
+        <aside class="sidebar">
+          <article class="card panel">
+            <div class="section-header">
+              <div>
+                <p class="panel-kicker">Step 01</p>
+                <h2>选择视频目录</h2>
+              </div>
+              <span class="chip">同名匹配</span>
+            </div>
+            <label class="dropzone" id="videoDropzone">
+              <input id="videoInput" type="file" accept="video/*,.mp4,.mov,.avi,.mkv,.webm" multiple webkitdirectory />
+              <strong>选择输入视频目录</strong>
+              <span>支持 MP4 / MOV / AVI / MKV / WEBM。</span>
+            </label>
+            <div id="videoFileList" class="stack-list empty">还没有选择视频</div>
+          </article>
+
+          <article class="card panel">
+            <div class="section-header">
+              <div>
+                <p class="panel-kicker">Step 02</p>
+                <h2>选择参考图目录</h2>
+              </div>
+              <span class="chip chip-soft">a001 / a001_1 / a001_2</span>
+            </div>
+            <label class="dropzone" id="referenceDropzone">
+              <input id="referenceInput" type="file" accept="image/*" multiple webkitdirectory />
+              <strong>选择参考图目录</strong>
+              <span>支持 JPG / PNG / WEBP，按同名规则自动配对。</span>
+            </label>
+            <div id="referenceFileList" class="stack-list empty">还没有选择参考图</div>
+          </article>
+
+          <article class="card panel">
+            <div class="section-header">
+              <div>
+                <p class="panel-kicker">Step 03</p>
+                <h2>扫描匹配规则</h2>
+              </div>
+              <button id="scanVideoMatchBtn" class="btn btn-primary">扫描匹配</button>
+            </div>
+            <div class="rule-box">
+              <p>默认规则：视频 `a001.mp4` 会依次匹配参考图 `a001.*`、`a001_1.*`、`a001_2.*`。</p>
+              <p>允许一到两张参考图；如果同一槽位出现多个文件，会标记为命名冲突。</p>
+            </div>
+          </article>
+
+          <article class="card panel">
+            <div class="section-header">
+              <div>
+                <p class="panel-kicker">Step 04</p>
+                <h2>API 配置</h2>
+                <p class="panel-note">修改后可保存到 API 配置文件，下次启动可直接读取。</p>
+              </div>
+              <div class="section-actions">
+                <span class="chip chip-soft" id="videoModeBadge">Mock</span>
+                <button id="reloadVideoApiConfigBtn" class="btn btn-ghost">重新读取</button>
+                <button id="saveVideoApiConfigBtn" class="btn btn-primary">保存配置</button>
+              </div>
+            </div>
+            <div class="config-path">
+              <span>API 配置文件</span>
+              <code id="videoApiConfigPath">加载中...</code>
+            </div>
+            <div class="form-grid">
+              <label>
+                <span>API Key</span>
+                <input id="videoApiKey" class="input" type="password" placeholder="sk-..." />
+              </label>
+              <label>
+                <span>Base URL</span>
+                <input id="videoBaseUrl" class="input" type="text" placeholder="https://api.example.com/v1" />
+              </label>
+              <label>
+                <span>Model</span>
+                <input id="videoModel" class="input" type="text" placeholder="Prompt" />
+              </label>
+              <label>
+                <span>输出目录</span>
+                <input id="videoOutputDir" class="input" type="text" placeholder="D:\outputs\video_prompts" />
+              </label>
+            </div>
+            <div class="toggle-row">
+              <label class="toggle"><input id="videoUseMock" type="checkbox" checked /> 没有 Key 时启用 mock</label>
+              <label class="toggle"><input id="videoOverwrite" type="checkbox" /> 覆盖已有结果</label>
+            </div>
+          </article>
+        </aside>
+
+        <section class="mainpane">
+          <article class="card panel">
+            <div class="section-header">
+              <div>
+                <p class="panel-kicker">Step 05</p>
+                <h2>视频 Prompt 配置文件</h2>
+                <p class="panel-note">视频模块拥有独立的 Prompt 配置文件，可单独调优编辑类输出。</p>
+              </div>
+              <div class="section-actions">
+                <button id="reloadVideoPromptConfigBtn" class="btn btn-ghost">重新读取</button>
+                <button id="saveVideoPromptConfigBtn" class="btn btn-primary">保存配置</button>
+              </div>
+            </div>
+            <div class="config-path">
+              <span>配置文件</span>
+              <code id="videoPromptConfigPath">加载中...</code>
+            </div>
+            <div class="prompt-grid">
+              <label class="prompt-field">
+                <span>System Prompt</span>
+                <textarea id="videoSystemPrompt" class="textarea" spellcheck="false"></textarea>
+              </label>
+              <label class="prompt-field">
+                <span>User Prompt</span>
+                <textarea id="videoUserPrompt" class="textarea" spellcheck="false"></textarea>
+              </label>
+            </div>
+          </article>
+
+          <article class="card panel">
+            <div class="section-header">
+              <div>
+                <p class="panel-kicker">Step 06</p>
+                <h2>匹配预览</h2>
+                <p class="panel-note">先确认配对结果，再批量生成视频编辑 Prompt。</p>
+              </div>
+            </div>
+            <div class="match-summary" id="videoMatchSummary">
+              <span class="chip">总数 0</span>
+              <span class="chip">成功 0</span>
+              <span class="chip">部分匹配 0</span>
+              <span class="chip">缺失 0</span>
+              <span class="chip">冲突 0</span>
+            </div>
+            <div id="videoMatchTable" class="table-card empty">完成扫描后，这里会展示每个视频的匹配结果。</div>
+          </article>
+
+          <article class="card panel">
+            <div class="section-header">
+              <div>
+                <p class="panel-kicker">Step 07</p>
+                <h2>运行与进度</h2>
+              </div>
+              <div class="section-actions">
+                <button id="reloadVideoFilesBtn" class="btn btn-ghost">重载文件</button>
+                <button id="startVideoBtn" class="btn btn-primary">开始生成</button>
+              </div>
+            </div>
+            <div class="progress-shell">
+              <div class="progress-track"><div id="videoProgressBar" class="progress-fill"></div></div>
+              <div class="progress-copy">
+                <strong id="videoProgressText">等待开始</strong>
+                <span id="videoProgressDetail">扫描通过后，将自动提取视频帧并与参考图一起提交。</span>
+              </div>
+            </div>
+          </article>
+
+          <div class="content-grid">
+            <article class="card panel">
+              <div class="section-header">
+                <div>
+                  <p class="panel-kicker">Live</p>
+                  <h2>日志</h2>
+                </div>
+                <button id="refreshVideoJobBtn" class="btn btn-ghost">刷新</button>
+              </div>
+              <pre id="videoLogBox" class="log-box">暂无日志</pre>
+            </article>
+
+            <article class="card panel">
+              <div class="section-header">
+                <div>
+                  <p class="panel-kicker">Output</p>
+                  <h2>结果文件</h2>
+                </div>
+                <button id="openVideoOutputBtn" class="btn btn-ghost">打开结果文件夹</button>
+              </div>
+              <div id="videoOutputList" class="output-list empty">运行后会显示生成的文件</div>
+            </article>
+          </div>
+        </section>
+      </section>
+    </section>
+  </main>
+
+  <script src="/app.js"></script>
+</body>
+</html>
