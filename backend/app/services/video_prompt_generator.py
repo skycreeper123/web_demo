@@ -136,7 +136,7 @@ def run_video_generation(
         video_name = str(video_item.get("name", "video"))
         match_key = str(video_item.get("matchKey") or Path(video_name).stem)
         references = list(video_item.get("references") or [])
-        frame_data_url = str(video_item.get("frameDataUrl") or "")
+        video_url = str(video_item.get("videoUrl") or video_item.get("videoDataUrl") or "")
         json_path = job_output_dir / f"{match_key}.prompt.json"
         txt_path = job_output_dir / f"{match_key}.prompt.txt"
 
@@ -150,17 +150,21 @@ def run_video_generation(
                 payload = _mock_result(video_name, references, config)
                 raw_response = json.dumps(payload, ensure_ascii=False, indent=2)
             else:
-                if not frame_data_url:
-                    raise RuntimeError("Missing extracted video frame.")
-                image_data_urls = [frame_data_url] + [str(reference.get("dataUrl", "")) for reference in references if reference.get("dataUrl")]
+                if not video_url:
+                    raise RuntimeError("Missing source video URL.")
+                media_urls = [video_url] + [
+                    str(reference.get("url") or reference.get("dataUrl") or "")
+                    for reference in references
+                    if reference.get("url") or reference.get("dataUrl")
+                ]
                 reference_names = ", ".join(reference.get("name", "") for reference in references if reference.get("name")) or "none"
                 user_text = (
                     f"{base_user_text}\n\n"
                     f"Source video file: {video_name}\n"
                     f"Reference images: {reference_names}\n"
-                    "Image order: first image is the source video frame, the remaining images are references."
+                    "Media order: the first media item is the source video URL, and the remaining media items are reference image URLs."
                 )
-                response = client.chat_with_images(system_prompt, user_text, image_data_urls)
+                response = client.chat_with_media_urls(system_prompt, user_text, media_urls)
                 raw_response = response.text
                 payload = _try_parse_json(raw_response) or {
                     "source_summary": "",

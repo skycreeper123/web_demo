@@ -5,6 +5,7 @@ import urllib.error
 import urllib.request
 from dataclasses import dataclass
 from typing import Any
+from urllib.parse import urlparse
 
 from web_demo.backend.app.core.config import normalize_base_url
 
@@ -23,23 +24,25 @@ class OpenAICompatibleClient:
         self.timeout = timeout
 
     def chat_with_image(self, system_prompt: str, user_text: str, image_data_url: str) -> LLMResponse:
-        return self.chat_with_images(system_prompt, user_text, [image_data_url])
+        return self.chat_with_media_urls(system_prompt, user_text, [image_data_url])
 
-    def chat_with_images(self, system_prompt: str, user_text: str, image_data_urls: list[str]) -> LLMResponse:
-        content: list[dict[str, Any]] = [{"type": "text", "text": user_text}]
-        for image_data_url in image_data_urls:
-            content.append({"type": "image_url", "image_url": {"url": image_data_url}})
+    def chat_with_media_urls(self, system_prompt: str, user_text: str, media_urls: list[str]) -> LLMResponse:
+        content: list[dict[str, Any]] = [{"type": "text", "text": self._build_prompt_text(system_prompt, user_text)}]
+        for media_url in media_urls:
+            self._validate_remote_media_url(media_url)
+            content.append({"type": "image_url", "image_url": {"url": media_url}})
 
         url = self.base_url.rstrip("/") + "/chat/completions"
         body = {
             "model": self.model,
             "messages": [
-                {"role": "system", "content": system_prompt},
                 {"role": "user", "content": content},
             ],
+            "stream": False,
             "temperature": 0.3,
         }
         headers = {
+            "Accept": "application/json",
             "Authorization": f"Bearer {self.api_key}",
             "Content-Type": "application/json",
         }
@@ -61,6 +64,20 @@ class OpenAICompatibleClient:
         raw = json.loads(raw_text)
         text = self._extract_text(raw)
         return LLMResponse(text=text, raw=raw)
+
+    @staticmethod
+    def _build_prompt_text(system_prompt: str, user_text: str) -> str:
+        system_text = system_prompt.strip()
+        user_content = user_text.strip()
+        if system_text and user_content:
+            return f"{system_text}\n\n{user_content}"
+        return system_text or user_content
+
+    @staticmethod
+    def _validate_remote_media_url(media_url: str) -> None:
+        parsed = urlparse(str(media_url).strip())
+        if parsed.scheme not in {"http", "https"} or not parsed.netloc:
+            raise RuntimeError("Official API mode requires publicly accessible http(s) media URLs.")
 
     @staticmethod
     def _extract_text(raw: dict[str, Any]) -> str:

@@ -65,7 +65,11 @@ http://127.0.0.1:8000
 页面左上角有统一导航：
 
 - 首页
-- 返回上一层
+- 返回上一级
+
+补充说明：
+
+- 当前 `返回上一级` 按钮的实际行为与 `首页` 按钮相同，都会回到首页视图
 
 ## 5. 图片模块怎么用
 
@@ -294,6 +298,11 @@ outputs/video
 - `use_mock`
 - `overwrite`
 
+补充说明：
+
+- 配置文件中的默认 `base_url` 示例值是 `https://apinebula.ai/v1`
+- 运行时如果使用这个旧地址，后端会自动规范为 `https://api.yhlxj.ai/v1` 后再发起请求
+
 ### 8.2 Prompt 配置文件
 
 - `backend/image_prompt_config.json`
@@ -361,5 +370,5 @@ outputs/video
 
 ## 12. 文档对应关系
 
-- 项目总览：[README.md](D:/AIGC数据库/prompt_tool/prompt_tool/web_demo/README.md)
-- 技术实现：[TECHNICAL.md](D:/AIGC数据库/prompt_tool/prompt_tool/web_demo/TECHNICAL.md)
+- 项目总览：[README.md](./README.md)
+- 技术实现：[TECHNICAL.md](./TECHNICAL.md)

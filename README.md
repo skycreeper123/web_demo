@@ -143,6 +143,11 @@ http://127.0.0.1:8000
 }
 ```
 
+补充说明：
+
+- `api_config.json` 的默认示例值会写成 `https://apinebula.ai/v1`
+- 运行时如果 `base_url` 命中这个旧地址，后端会自动规范为 `https://api.yhlxj.ai/v1` 后再发起请求
+
 ### Prompt 配置
 
 - 图片模块：`backend/image_prompt_config.json`
@@ -167,8 +172,8 @@ http://127.0.0.1:8000
 
 ## 文档入口
 
-- 使用说明：[USER_GUIDE.md](D:/AIGC数据库/prompt_tool/prompt_tool/web_demo/USER_GUIDE.md)
-- 技术文档：[TECHNICAL.md](D:/AIGC数据库/prompt_tool/prompt_tool/web_demo/TECHNICAL.md)
+- 使用说明：[USER_GUIDE.md](./USER_GUIDE.md)
+- 技术文档：[TECHNICAL.md](./TECHNICAL.md)
 
 ## 当前限制
 

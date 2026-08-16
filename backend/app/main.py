@@ -24,6 +24,7 @@ from web_demo.backend.app.core.config import (  # noqa: E402
     load_api_config,
     load_defaults,
     load_prompt_config,
+    project_relative_path_text,
     prompt_config_path,
     resolve_output_path,
     save_api_config,
@@ -89,6 +90,53 @@ class JobStore:
 STORE = JobStore()
 
 
+class BrowserSessionStore:
+    def __init__(self) -> None:
+        self._lock = threading.Lock()
+        self._sessions: dict[str, float] = {}
+        self._had_browser_session = False
+
+    def register(self, session_id: str) -> None:
+        now = time.time()
+        with self._lock:
+            self._sessions[session_id] = now
+            self._had_browser_session = True
+
+    def heartbeat(self, session_id: str) -> bool:
+        now = time.time()
+        with self._lock:
+            if session_id not in self._sessions:
+                return False
+            self._sessions[session_id] = now
+            return True
+
+    def close(self, session_id: str) -> None:
+        with self._lock:
+            self._sessions.pop(session_id, None)
+
+    def snapshot(self, stale_after_seconds: float) -> dict[str, Any]:
+        now = time.time()
+        with self._lock:
+            stale_ids = [
+                session_id
+                for session_id, last_seen_at in self._sessions.items()
+                if (now - last_seen_at) > stale_after_seconds
+            ]
+            for session_id in stale_ids:
+                self._sessions.pop(session_id, None)
+            active_count = len(self._sessions)
+            return {
+                "active_count": active_count,
+                "had_browser_session": self._had_browser_session,
+                "session_ids": sorted(self._sessions),
+            }
+
+
+BROWSER_SESSIONS = BrowserSessionStore()
+SESSION_HEARTBEAT_TIMEOUT_SECONDS = 15.0
+SESSION_SWEEP_INTERVAL_SECONDS = 5.0
+
+
 def json_response(handler: BaseHTTPRequestHandler, status: int, payload: Any) -> None:
     data = json.dumps(payload, ensure_ascii=False, indent=2).encode("utf-8")
     handler.send_response(status)
@@ -133,16 +181,40 @@ def job_snapshot(job: JobState) -> dict[str, Any]:
     return data
 
 
+def start_browser_session_reaper(server: ThreadingHTTPServer) -> None:
+    def worker() -> None:
+        while True:
+            time.sleep(SESSION_SWEEP_INTERVAL_SECONDS)
+            snapshot = BROWSER_SESSIONS.snapshot(SESSION_HEARTBEAT_TIMEOUT_SECONDS)
+            if snapshot["had_browser_session"] and snapshot["active_count"] == 0:
+                server.shutdown()
+                return
+
+    threading.Thread(target=worker, daemon=True).start()
+
+
+def terminate_server_process(server: ThreadingHTTPServer, exit_code: int = 0) -> None:
+    def worker() -> None:
+        try:
+            server.shutdown()
+            server.server_close()
+        finally:
+            time.sleep(0.2)
+            os._exit(exit_code)
+
+    threading.Thread(target=worker, daemon=True).start()
+
+
 def _prompt_config_payload(kind: str) -> dict[str, Any]:
     return {
-        "path": str(prompt_config_path(kind)),
+        "path": project_relative_path_text(prompt_config_path(kind)),
         "config": load_prompt_config(kind),
     }
 
 
 def _api_config_payload(kind: str) -> dict[str, Any]:
     return {
-        "path": str(api_config_path()),
+        "path": project_relative_path_text(api_config_path()),
         "config": load_api_config(kind),
     }
 
@@ -275,10 +347,10 @@ class DemoHandler(BaseHTTPRequestHandler):
                     "outputRoot": DEFAULTS.output_root,
                     "imageOutputRoot": DEFAULTS.image_output_root,
                     "videoOutputRoot": DEFAULTS.video_output_root,
-                    "imagePromptConfigPath": str(prompt_config_path(IMAGE_PROMPT_KIND)),
-                    "videoPromptConfigPath": str(prompt_config_path(VIDEO_PROMPT_KIND)),
-                    "imageApiConfigPath": str(api_config_path()),
-                    "videoApiConfigPath": str(api_config_path()),
+                    "imagePromptConfigPath": project_relative_path_text(prompt_config_path(IMAGE_PROMPT_KIND)),
+                    "videoPromptConfigPath": project_relative_path_text(prompt_config_path(VIDEO_PROMPT_KIND)),
+                    "imageApiConfigPath": project_relative_path_text(api_config_path()),
+                    "videoApiConfigPath": project_relative_path_text(api_config_path()),
                     "imageApiConfig": image_api_config,
                     "videoApiConfig": video_api_config,
                     "useMock": True,
@@ -295,6 +367,13 @@ class DemoHandler(BaseHTTPRequestHandler):
             return json_response(self, HTTPStatus.OK, _api_config_payload(IMAGE_PROMPT_KIND))
         if path == f"/api/runtime-config/{VIDEO_PROMPT_KIND}":
             return json_response(self, HTTPStatus.OK, _api_config_payload(VIDEO_PROMPT_KIND))
+
+        if path == "/api/browser-session":
+            return json_response(
+                self,
+                HTTPStatus.OK,
+                BROWSER_SESSIONS.snapshot(SESSION_HEARTBEAT_TIMEOUT_SECONDS),
+            )
 
         if path.startswith("/api/jobs/") and path.endswith("/files"):
             job_id = path.split("/")[3]
@@ -378,7 +457,7 @@ class DemoHandler(BaseHTTPRequestHandler):
                 HTTPStatus.OK,
                 {
                     "ok": True,
-                    "path": str(prompt_config_path(IMAGE_PROMPT_KIND)),
+                    "path": project_relative_path_text(prompt_config_path(IMAGE_PROMPT_KIND)),
                     "config": normalized,
                 },
             )
@@ -391,7 +470,7 @@ class DemoHandler(BaseHTTPRequestHandler):
                 HTTPStatus.OK,
                 {
                     "ok": True,
-                    "path": str(prompt_config_path(IMAGE_PROMPT_KIND)),
+                    "path": project_relative_path_text(prompt_config_path(IMAGE_PROMPT_KIND)),
                     "config": normalized,
                 },
             )
@@ -404,7 +483,7 @@ class DemoHandler(BaseHTTPRequestHandler):
                 HTTPStatus.OK,
                 {
                     "ok": True,
-                    "path": str(prompt_config_path(VIDEO_PROMPT_KIND)),
+                    "path": project_relative_path_text(prompt_config_path(VIDEO_PROMPT_KIND)),
                     "config": normalized,
                 },
             )
@@ -417,7 +496,7 @@ class DemoHandler(BaseHTTPRequestHandler):
                 HTTPStatus.OK,
                 {
                     "ok": True,
-                    "path": str(api_config_path()),
+                    "path": project_relative_path_text(api_config_path()),
                     "config": normalized,
                 },
             )
@@ -430,10 +509,76 @@ class DemoHandler(BaseHTTPRequestHandler):
                 HTTPStatus.OK,
                 {
                     "ok": True,
-                    "path": str(api_config_path()),
+                    "path": project_relative_path_text(api_config_path()),
                     "config": normalized,
                 },
             )
+
+        if path == "/api/browser-session/register":
+            payload = read_body_json(self)
+            session_id = str(payload.get("sessionId") or "").strip()
+            if not session_id:
+                return json_response(self, HTTPStatus.BAD_REQUEST, {"error": "Missing sessionId"})
+            BROWSER_SESSIONS.register(session_id)
+            return json_response(
+                self,
+                HTTPStatus.OK,
+                {
+                    "ok": True,
+                    "sessionId": session_id,
+                    **BROWSER_SESSIONS.snapshot(SESSION_HEARTBEAT_TIMEOUT_SECONDS),
+                },
+            )
+
+        if path == "/api/browser-session/heartbeat":
+            payload = read_body_json(self)
+            session_id = str(payload.get("sessionId") or "").strip()
+            if not session_id:
+                return json_response(self, HTTPStatus.BAD_REQUEST, {"error": "Missing sessionId"})
+            known = BROWSER_SESSIONS.heartbeat(session_id)
+            if not known:
+                BROWSER_SESSIONS.register(session_id)
+            return json_response(
+                self,
+                HTTPStatus.OK,
+                {
+                    "ok": True,
+                    "sessionId": session_id,
+                    **BROWSER_SESSIONS.snapshot(SESSION_HEARTBEAT_TIMEOUT_SECONDS),
+                },
+            )
+
+        if path == "/api/browser-session/close":
+            payload = read_body_json(self)
+            session_id = str(payload.get("sessionId") or "").strip()
+            if not session_id:
+                return json_response(self, HTTPStatus.BAD_REQUEST, {"error": "Missing sessionId"})
+            BROWSER_SESSIONS.close(session_id)
+            return json_response(
+                self,
+                HTTPStatus.OK,
+                {
+                    "ok": True,
+                    "sessionId": session_id,
+                    **BROWSER_SESSIONS.snapshot(SESSION_HEARTBEAT_TIMEOUT_SECONDS),
+                },
+            )
+
+        if path == "/api/app/terminate":
+            payload = read_body_json(self)
+            session_id = str(payload.get("sessionId") or "").strip()
+            if session_id:
+                BROWSER_SESSIONS.close(session_id)
+            json_response(
+                self,
+                HTTPStatus.OK,
+                {
+                    "ok": True,
+                    "message": "Server is shutting down.",
+                },
+            )
+            terminate_server_process(self.server)
+            return
 
         if path.startswith("/api/jobs/") and path.endswith("/open-output"):
             job_id = path.split("/")[3]
@@ -463,6 +608,7 @@ def main() -> None:
     load_prompt_config(IMAGE_PROMPT_KIND)
     load_prompt_config(VIDEO_PROMPT_KIND)
     server = ThreadingHTTPServer(("127.0.0.1", 8000), DemoHandler)
+    start_browser_session_reaper(server)
     print("Prompt tool demo running at http://127.0.0.1:8000")
     try:
         server.serve_forever()

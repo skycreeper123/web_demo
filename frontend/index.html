@@ -21,6 +21,7 @@
       <div class="topbar-actions">
         <button id="navHomeBtn" class="btn btn-ghost">首页</button>
         <button id="navBackBtn" class="btn btn-ghost">返回上一级</button>
+        <button id="shutdownAppBtn" class="btn btn-ghost">退出并关闭</button>
       </div>
     </header>
 
@@ -47,7 +48,7 @@
             <p>选择视频目录和参考图目录，按同名规则自动匹配，预览配对结果后生成视频编辑类 Prompt。</p>
             <ul class="feature-list">
               <li>同名匹配：a001 -> a001 / a001_1 / a001_2</li>
-              <li>支持视频帧提取 + 参考图联合输入</li>
+              <li>支持视频本体 + 参考图联合输入</li>
               <li>支持编辑视频专用 Prompt 配置文件</li>
             </ul>
           </div>
@@ -93,9 +94,14 @@
             <label class="dropzone" id="imageDropzone">
               <input id="imageInput" type="file" accept="image/*" multiple webkitdirectory />
               <strong>点击选择，或把图片拖到这里</strong>
-              <span>支持 JPG / PNG / WEBP，可直接选文件夹批量导入。</span>
+              <span>支持 JPG / PNG / WEBP，可直接选文件夹批量导入。真实 API 模式下请优先填写下方官方 URL。</span>
             </label>
             <div id="imageFileList" class="stack-list empty">还没有选择图片</div>
+            <label class="prompt-field">
+              <span>官方 API 图片 URL（每行一个，可写 `文件名 | URL`）</span>
+              <textarea id="imageUrlInput" class="textarea" spellcheck="false" placeholder="demo.png | https://example.com/demo.png&#10;https://example.com/another-image.jpg"></textarea>
+            </label>
+            <p class="panel-note">最保险模式下，真实 API 调用只发送可访问的 http(s) 图片 URL。本地文件仅用于 mock。</p>
           </article>
 
           <article class="card panel">
@@ -137,6 +143,7 @@
               <label class="toggle"><input id="imageUseMock" type="checkbox" checked /> 没有 Key 时启用 mock</label>
               <label class="toggle"><input id="imageOverwrite" type="checkbox" /> 覆盖已有结果</label>
             </div>
+            <p class="panel-note">关闭 `mock` 并填写真实 API Key 后，会严格要求使用官方可访问的图片 URL。</p>
           </article>
         </aside>
 
@@ -253,9 +260,13 @@
             <label class="dropzone" id="videoDropzone">
               <input id="videoInput" type="file" accept="video/*,.mp4,.mov,.avi,.mkv,.webm" multiple webkitdirectory />
               <strong>选择输入视频目录</strong>
-              <span>支持 MP4 / MOV / AVI / MKV / WEBM。</span>
+              <span>支持 MP4 / MOV / AVI / MKV / WEBM。真实 API 模式下请优先填写下方官方 URL。</span>
             </label>
             <div id="videoFileList" class="stack-list empty">还没有选择视频</div>
+            <label class="prompt-field">
+              <span>官方 API 视频 URL（每行一个，可写 `文件名 | URL`）</span>
+              <textarea id="videoUrlInput" class="textarea" spellcheck="false" placeholder="a001.mp4 | https://example.com/a001.mp4&#10;https://example.com/a002.mov"></textarea>
+            </label>
           </article>
 
           <article class="card panel">
@@ -269,9 +280,14 @@
             <label class="dropzone" id="referenceDropzone">
               <input id="referenceInput" type="file" accept="image/*" multiple webkitdirectory />
               <strong>选择参考图目录</strong>
-              <span>支持 JPG / PNG / WEBP，按同名规则自动配对。</span>
+              <span>支持 JPG / PNG / WEBP，按同名规则自动配对。真实 API 模式下请优先填写下方官方 URL。</span>
             </label>
             <div id="referenceFileList" class="stack-list empty">还没有选择参考图</div>
+            <label class="prompt-field">
+              <span>官方 API 参考图 URL（每行一个，可写 `文件名 | URL`）</span>
+              <textarea id="referenceUrlInput" class="textarea" spellcheck="false" placeholder="a001.png | https://example.com/a001.png&#10;a001_1.png | https://example.com/a001_1.png"></textarea>
+            </label>
+            <p class="panel-note">真实 API 模式下，视频与参考图都建议使用公开可访问的 http(s) URL，严格对齐官方示例。</p>
           </article>
 
           <article class="card panel">
@@ -327,6 +343,7 @@
               <label class="toggle"><input id="videoUseMock" type="checkbox" checked /> 没有 Key 时启用 mock</label>
               <label class="toggle"><input id="videoOverwrite" type="checkbox" /> 覆盖已有结果</label>
             </div>
+            <p class="panel-note">关闭 `mock` 并填写真实 API Key 后，会严格要求使用官方可访问的视频 URL 和参考图 URL。</p>
           </article>
         </aside>
 
@@ -392,7 +409,7 @@
               <div class="progress-track"><div id="videoProgressBar" class="progress-fill"></div></div>
               <div class="progress-copy">
                 <strong id="videoProgressText">等待开始</strong>
-                <span id="videoProgressDetail">扫描通过后，将自动提取视频帧并与参考图一起提交。</span>
+                <span id="videoProgressDetail">扫描通过后，将直接读取视频文件本体并与参考图一起提交。</span>
               </div>
             </div>
           </article>

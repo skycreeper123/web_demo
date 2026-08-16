@@ -110,7 +110,7 @@ def run_image_generation(
 
     for index, image in enumerate(images, start=1):
         name = image["name"]
-        data_url = image["dataUrl"]
+        image_url = str(image.get("imageUrl") or image.get("dataUrl") or "")
         stem = Path(name).stem
         json_path = job_output_dir / f"{stem}.prompt.json"
         txt_path = job_output_dir / f"{stem}.prompt.txt"
@@ -125,7 +125,9 @@ def run_image_generation(
                 payload = _mock_result(name, config)
                 raw_response = json.dumps(payload, ensure_ascii=False, indent=2)
             else:
-                response = client.chat_with_image(system_prompt, user_text, data_url)
+                if not image_url:
+                    raise RuntimeError("Missing source image URL.")
+                response = client.chat_with_image(system_prompt, user_text, image_url)
                 raw_response = response.text
                 payload = _try_parse_json(raw_response) or {
                     "subject": "",

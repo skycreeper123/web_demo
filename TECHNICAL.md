@@ -96,7 +96,7 @@ web_demo/
 - 加载与保存 `api_config.json`
 - 加载与保存两份 Prompt 配置文件
 - 处理输出目录的相对路径/绝对路径转换
-- 兼容旧的 `apinebula.ai/v1` 地址并规范 `base_url`
+- 兼容旧的 `apinebula.ai/v1` 地址，并在运行时规范为 `https://api.yhlxj.ai/v1`
 
 ### 4.4 LLM 调用层
 
@@ -217,6 +217,7 @@ web_demo/
 - 文件不存在时会自动生成
 - 字段缺失时会按默认配置补齐
 - `output_dir` 会被标准化为相对路径优先
+- 如果 `base_url` 结尾是 `apinebula.ai/v1`，运行时会被自动改写为 `https://api.yhlxj.ai/v1`
 
 ### 6.2 Prompt 配置
 

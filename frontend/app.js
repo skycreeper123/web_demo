@@ -16,6 +16,8 @@ const VIEW_META = {
 const state = {
   currentView: "home",
   defaults: null,
+  browserSessionId: "",
+  browserHeartbeatTimer: null,
   image: {
     files: [],
     filesExpanded: false,
@@ -48,6 +50,7 @@ const els = {
   viewSubtitle: document.getElementById("viewSubtitle"),
   navHomeBtn: document.getElementById("navHomeBtn"),
   navBackBtn: document.getElementById("navBackBtn"),
+  shutdownAppBtn: document.getElementById("shutdownAppBtn"),
   homeView: document.getElementById("homeView"),
   imageView: document.getElementById("imageView"),
   videoView: document.getElementById("videoView"),
@@ -57,6 +60,7 @@ const els = {
   imageInput: document.getElementById("imageInput"),
   imageDropzone: document.getElementById("imageDropzone"),
   imageFileList: document.getElementById("imageFileList"),
+  imageUrlInput: document.getElementById("imageUrlInput"),
   imageSelectedCount: document.getElementById("imageSelectedCount"),
   imageStatusBadge: document.getElementById("imageStatusBadge"),
   imageJobMeta: document.getElementById("imageJobMeta"),
@@ -90,9 +94,11 @@ const els = {
   videoInput: document.getElementById("videoInput"),
   videoDropzone: document.getElementById("videoDropzone"),
   videoFileList: document.getElementById("videoFileList"),
+  videoUrlInput: document.getElementById("videoUrlInput"),
   referenceInput: document.getElementById("referenceInput"),
   referenceDropzone: document.getElementById("referenceDropzone"),
   referenceFileList: document.getElementById("referenceFileList"),
+  referenceUrlInput: document.getElementById("referenceUrlInput"),
   videoSelectedCount: document.getElementById("videoSelectedCount"),
   referenceSelectedCount: document.getElementById("referenceSelectedCount"),
   videoMatchBadge: document.getElementById("videoMatchBadge"),
@@ -135,11 +141,232 @@ function escapeHtml(text) {
     .replaceAll('"', "&quot;");
 }
 
+function createBrowserSessionId() {
+  if (globalThis.crypto?.randomUUID) {
+    return globalThis.crypto.randomUUID();
+  }
+  return `browser-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+}
+
 function formatBytes(bytes) {
   if (!Number.isFinite(bytes)) return "-";
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`;
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function normalizeDisplayPath(value) {
+  const text = String(value || "").trim();
+  if (!text) return "";
+
+  const normalized = text.replaceAll("\\", "/");
+  const markers = [
+    "backend/",
+    "frontend/",
+    "uploads/",
+    "outputs/",
+    "image_prompt_config.json",
+    "video_prompt_config.json",
+    "api_config.json",
+  ];
+
+  for (const marker of markers) {
+    const index = normalized.toLowerCase().indexOf(marker.toLowerCase());
+    if (index >= 0) {
+      return normalized.slice(index);
+    }
+  }
+
+  return normalized;
+}
+
+function normalizeLogLines(lines) {
+  return (lines || []).map((line) => normalizeDisplayPath(line));
+}
+
+async function postBrowserSession(path, payload) {
+  const res = await fetch(path, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+    keepalive: true,
+  });
+  if (!res.ok) {
+    throw new Error(`Browser session request failed: ${res.status}`);
+  }
+  return res.json();
+}
+
+async function registerBrowserSession() {
+  if (!state.browserSessionId) {
+    state.browserSessionId = createBrowserSessionId();
+  }
+  await postBrowserSession("/api/browser-session/register", { sessionId: state.browserSessionId });
+}
+
+async function heartbeatBrowserSession() {
+  if (!state.browserSessionId) return;
+  try {
+    await postBrowserSession("/api/browser-session/heartbeat", { sessionId: state.browserSessionId });
+  } catch {
+    // Ignore transient heartbeat failures; the next tick or page refresh can recover.
+  }
+}
+
+function closeBrowserSession() {
+  if (!state.browserSessionId) return;
+  const payload = JSON.stringify({ sessionId: state.browserSessionId });
+  const blob = new Blob([payload], { type: "application/json" });
+  if (navigator.sendBeacon) {
+    navigator.sendBeacon("/api/browser-session/close", blob);
+    return;
+  }
+  fetch("/api/browser-session/close", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: payload,
+    keepalive: true,
+  }).catch(() => {});
+}
+
+function startBrowserHeartbeat() {
+  if (state.browserHeartbeatTimer) {
+    clearInterval(state.browserHeartbeatTimer);
+  }
+  state.browserHeartbeatTimer = setInterval(() => {
+    heartbeatBrowserSession();
+  }, 5000);
+}
+
+async function shutdownApp() {
+  if (state.browserHeartbeatTimer) {
+    clearInterval(state.browserHeartbeatTimer);
+    state.browserHeartbeatTimer = null;
+  }
+
+  try {
+    await fetch("/api/app/terminate", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ sessionId: state.browserSessionId || "" }),
+      keepalive: true,
+    });
+  } catch {
+    // Ignore fetch errors here because the backend may already be shutting down.
+  }
+
+  closeBrowserSession();
+
+  try {
+    window.open("", "_self");
+    window.close();
+  } catch {
+    // Ignore browser close restrictions and fall through to the fallback UI.
+  }
+
+  setTimeout(() => {
+    document.body.innerHTML = `
+      <main style="font-family: sans-serif; padding: 32px; line-height: 1.6;">
+        <h1>服务已退出</h1>
+        <p>后端进程已收到退出指令。这个页面现在可以手动关闭。</p>
+      </main>
+    `;
+  }, 150);
+}
+
+function isRealApiMode(apiKeyInput, mockCheckbox) {
+  return apiKeyInput.value.trim().length > 0 && !mockCheckbox.checked;
+}
+
+function isRemoteHttpUrl(value) {
+  try {
+    const parsed = new URL(String(value).trim());
+    return parsed.protocol === "http:" || parsed.protocol === "https:";
+  } catch {
+    return false;
+  }
+}
+
+function inferNameFromUrl(url, fallbackPrefix, index) {
+  const parsed = new URL(url);
+  const rawName = decodeURIComponent(parsed.pathname.split("/").pop() || "").trim();
+  return rawName || `${fallbackPrefix}-${index + 1}`;
+}
+
+function parseRemoteMediaLines(text, fallbackPrefix) {
+  return String(text || "")
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .map((line, index) => {
+      const parts = line.includes("|") ? line.split("|") : [line];
+      const url = String(parts.at(-1) || "").trim();
+      if (!isRemoteHttpUrl(url)) {
+        throw new Error(`发现无效媒体 URL：${url}`);
+      }
+      const name = String(parts.length > 1 ? parts.slice(0, -1).join("|") : "").trim() || inferNameFromUrl(url, fallbackPrefix, index);
+      return { name, url };
+    });
+}
+
+function getImageRemoteItems() {
+  return parseRemoteMediaLines(els.imageUrlInput.value, "image");
+}
+
+function getVideoRemoteItems() {
+  return parseRemoteMediaLines(els.videoUrlInput.value, "video");
+}
+
+function getReferenceRemoteItems() {
+  return parseRemoteMediaLines(els.referenceUrlInput.value, "reference");
+}
+
+function getImageItemsForSubmission() {
+  const remoteItems = getImageRemoteItems();
+  const apiMode = isRealApiMode(els.imageApiKey, els.imageUseMock);
+
+  if (apiMode) {
+    if (!remoteItems.length) {
+      throw new Error("真实 API 模式下，请提供官方可访问的图片 URL；不要直接发送本地图片文件。");
+    }
+    return remoteItems.map((item) => ({ name: item.name, imageUrl: item.url }));
+  }
+
+  if (remoteItems.length) {
+    return remoteItems.map((item) => ({ name: item.name, imageUrl: item.url }));
+  }
+
+  return null;
+}
+
+function getVideoAndReferenceEntries() {
+  const apiMode = isRealApiMode(els.videoApiKey, els.videoUseMock);
+  const remoteVideos = getVideoRemoteItems();
+  const remoteReferences = getReferenceRemoteItems();
+
+  if (apiMode) {
+    if (!remoteVideos.length) {
+      throw new Error("真实 API 模式下，请提供官方可访问的视频 URL。");
+    }
+    if (!remoteReferences.length) {
+      throw new Error("真实 API 模式下，请提供官方可访问的参考图 URL。");
+    }
+    return { apiMode, videos: remoteVideos, references: remoteReferences };
+  }
+
+  if (remoteVideos.length || remoteReferences.length) {
+    return {
+      apiMode,
+      videos: remoteVideos.length ? remoteVideos : state.video.videoFiles.map((file) => ({ name: file.name, file })),
+      references: remoteReferences.length ? remoteReferences : state.video.referenceFiles.map((file) => ({ name: file.name, file })),
+    };
+  }
+
+  return {
+    apiMode,
+    videos: state.video.videoFiles.map((file) => ({ name: file.name, file })),
+    references: state.video.referenceFiles.map((file) => ({ name: file.name, file })),
+  };
 }
 
 function getFileExtension(file) {
@@ -398,7 +625,7 @@ function renderImageJob(job) {
       : job.status === "running"
         ? "正在处理图片并保存结果。"
         : "等待开始。";
-  els.imageOutputRootValue.textContent = job.output_dir || (els.imageOutputDir.value.trim() || "未设置");
+  els.imageOutputRootValue.textContent = normalizeDisplayPath(job.output_dir) || normalizeDisplayPath(els.imageOutputDir.value.trim()) || "未设置";
 }
 
 function renderVideoJob(job) {
@@ -411,16 +638,18 @@ function renderVideoJob(job) {
     : job.status === "failed"
       ? `任务失败：${job.error || "unknown"}`
       : job.status === "running"
-        ? "正在提取视频帧并提交生成任务。"
+        ? "正在打包视频并提交生成任务。"
         : "等待开始。";
 }
 
 function setImageLog(lines) {
-  els.imageLogBox.textContent = lines.length ? lines.join("\n") : "暂无日志";
+  const normalizedLines = normalizeLogLines(lines);
+  els.imageLogBox.textContent = normalizedLines.length ? normalizedLines.join("\n") : "暂无日志";
 }
 
 function setVideoLog(lines) {
-  els.videoLogBox.textContent = lines.length ? lines.join("\n") : "暂无日志";
+  const normalizedLines = normalizeLogLines(lines);
+  els.videoLogBox.textContent = normalizedLines.length ? normalizedLines.join("\n") : "暂无日志";
 }
 
 function getImagePromptPayload() {
@@ -439,14 +668,14 @@ function getVideoPromptPayload() {
 
 function renderImagePromptConfig(data) {
   state.image.promptConfig = data.config || null;
-  els.imagePromptConfigPath.textContent = data.path || "未找到配置文件";
+  els.imagePromptConfigPath.textContent = normalizeDisplayPath(data.path) || "未找到配置文件";
   els.imageSystemPrompt.value = data.config?.system_prompt || "";
   els.imageUserPrompt.value = data.config?.user_text || "";
 }
 
 function renderVideoPromptConfig(data) {
   state.video.promptConfig = data.config || null;
-  els.videoPromptConfigPath.textContent = data.path || "未找到配置文件";
+  els.videoPromptConfigPath.textContent = normalizeDisplayPath(data.path) || "未找到配置文件";
   els.videoSystemPrompt.value = data.config?.system_prompt || "";
   els.videoUserPrompt.value = data.config?.user_text || "";
 }
@@ -548,25 +777,25 @@ function getVideoApiConfigPayload() {
 
 function renderImageApiConfig(data) {
   state.image.apiConfig = data.config || null;
-  els.imageApiConfigPath.textContent = data.path || "未找到配置文件";
+  els.imageApiConfigPath.textContent = normalizeDisplayPath(data.path) || "未找到配置文件";
   els.imageApiKey.value = data.config?.api_key || "";
   els.imageBaseUrl.value = data.config?.base_url || "";
   els.imageModel.value = data.config?.model || "";
-  els.imageOutputDir.value = data.config?.output_dir || "";
+  els.imageOutputDir.value = normalizeDisplayPath(data.config?.output_dir || "");
   els.imageUseMock.checked = data.config?.use_mock ?? true;
   els.imageOverwrite.checked = data.config?.overwrite ?? false;
   els.imageApiKey.placeholder = "直接粘贴 API Key";
-  els.imageOutputRootValue.textContent = els.imageOutputDir.value.trim() || "未设置";
+  els.imageOutputRootValue.textContent = normalizeDisplayPath(els.imageOutputDir.value.trim()) || "未设置";
   setModuleModeBadge(els.imageApiKey, els.imageUseMock, els.imageModeBadge);
 }
 
 function renderVideoApiConfig(data) {
   state.video.apiConfig = data.config || null;
-  els.videoApiConfigPath.textContent = data.path || "未找到配置文件";
+  els.videoApiConfigPath.textContent = normalizeDisplayPath(data.path) || "未找到配置文件";
   els.videoApiKey.value = data.config?.api_key || "";
   els.videoBaseUrl.value = data.config?.base_url || "";
   els.videoModel.value = data.config?.model || "";
-  els.videoOutputDir.value = data.config?.output_dir || "";
+  els.videoOutputDir.value = normalizeDisplayPath(data.config?.output_dir || "");
   els.videoUseMock.checked = data.config?.use_mock ?? true;
   els.videoOverwrite.checked = data.config?.overwrite ?? false;
   els.videoApiKey.placeholder = "直接粘贴 API Key";
@@ -641,64 +870,6 @@ function toDataUrl(file) {
   });
 }
 
-async function extractVideoFrame(file) {
-  return new Promise((resolve, reject) => {
-    const url = URL.createObjectURL(file);
-    const video = document.createElement("video");
-    let captured = false;
-
-    const cleanup = () => {
-      URL.revokeObjectURL(url);
-      video.removeAttribute("src");
-      video.load();
-    };
-
-    const capture = () => {
-      if (captured) return;
-      captured = true;
-      try {
-        const maxWidth = 960;
-        const scale = video.videoWidth > maxWidth ? maxWidth / video.videoWidth : 1;
-        const width = Math.max(1, Math.round(video.videoWidth * scale));
-        const height = Math.max(1, Math.round(video.videoHeight * scale));
-        const canvas = document.createElement("canvas");
-        canvas.width = width;
-        canvas.height = height;
-        const ctx = canvas.getContext("2d");
-        ctx.drawImage(video, 0, 0, width, height);
-        const dataUrl = canvas.toDataURL("image/jpeg", 0.88);
-        cleanup();
-        resolve(dataUrl);
-      } catch (error) {
-        cleanup();
-        reject(error);
-      }
-    };
-
-    video.preload = "metadata";
-    video.muted = true;
-    video.playsInline = true;
-    video.src = url;
-    video.onloadeddata = () => {
-      if (!Number.isFinite(video.duration) || video.duration <= 0) {
-        capture();
-      }
-    };
-    video.onloadedmetadata = () => {
-      if (Number.isFinite(video.duration) && video.duration > 0.2) {
-        video.currentTime = Math.min(video.duration / 2, video.duration - 0.1);
-      } else {
-        capture();
-      }
-    };
-    video.onseeked = capture;
-    video.onerror = () => {
-      cleanup();
-      reject(new Error(`无法提取视频帧：${file.name}`));
-    };
-  });
-}
-
 function bindDropzone(dropzone, input, onFiles) {
   const prevent = (event) => {
     event.preventDefault();
@@ -723,49 +894,53 @@ function bindDropzone(dropzone, input, onFiles) {
 }
 
 async function startImageGeneration() {
-  if (!state.image.files.length) {
-    alert("请先选择图片");
-    return;
-  }
+  try {
+    els.startImageBtn.disabled = true;
+    els.imageProgressText.textContent = "准备中";
+    els.imageProgressDetail.textContent = "正在整理图片输入并提交任务。";
 
-  els.startImageBtn.disabled = true;
-  els.imageProgressText.textContent = "准备中";
-  els.imageProgressDetail.textContent = "正在打包图片并提交任务。";
+    let images = getImageItemsForSubmission();
+    if (!images) {
+      if (!state.image.files.length) {
+        throw new Error("请先选择图片，或填写官方可访问的图片 URL。");
+      }
+      images = [];
+      for (const file of state.image.files) {
+        const dataUrl = await toDataUrl(file);
+        images.push({ name: file.name, dataUrl });
+      }
+    }
 
-  const images = [];
-  for (const file of state.image.files) {
-    const dataUrl = await toDataUrl(file);
-    images.push({ name: file.name, dataUrl });
-  }
+    const res = await fetch("/api/generate/image-prompt", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        apiKey: els.imageApiKey.value.trim(),
+        baseUrl: els.imageBaseUrl.value.trim(),
+        model: els.imageModel.value.trim(),
+        outputDir: els.imageOutputDir.value.trim(),
+        overwrite: els.imageOverwrite.checked,
+        useMock: els.imageUseMock.checked,
+        promptConfig: {
+          ...(state.image.promptConfig || {}),
+          ...getImagePromptPayload(),
+        },
+        images,
+      }),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      throw new Error(data.error || "启动失败");
+    }
 
-  const res = await fetch("/api/generate/image-prompt", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      apiKey: els.imageApiKey.value.trim(),
-      baseUrl: els.imageBaseUrl.value.trim(),
-      model: els.imageModel.value.trim(),
-      outputDir: els.imageOutputDir.value.trim(),
-      overwrite: els.imageOverwrite.checked,
-      useMock: els.imageUseMock.checked,
-      promptConfig: {
-        ...(state.image.promptConfig || {}),
-        ...getImagePromptPayload(),
-      },
-      images,
-    }),
-  });
-  const data = await res.json();
-  if (!res.ok) {
+    state.image.jobId = data.jobId;
+    setImageLog(data.job?.logs || []);
+    renderImageJob(data.job);
+    pollImageJob();
+  } catch (error) {
     els.startImageBtn.disabled = false;
-    alert(data.error || "启动失败");
-    return;
+    alert(error.message);
   }
-
-  state.image.jobId = data.jobId;
-  setImageLog(data.job?.logs || []);
-  renderImageJob(data.job);
-  pollImageJob();
 }
 
 async function pollImageJob() {
@@ -807,28 +982,31 @@ async function openImageOutput() {
 }
 
 async function scanVideoMatches() {
-  if (!state.video.videoFiles.length) {
-    alert("请先选择视频目录");
-    return;
-  }
-  if (!state.video.referenceFiles.length) {
-    alert("请先选择参考图目录");
-    return;
-  }
+  try {
+    const { videos, references } = getVideoAndReferenceEntries();
+    if (!videos.length) {
+      throw new Error("请先选择视频目录，或填写官方可访问的视频 URL。");
+    }
+    if (!references.length) {
+      throw new Error("请先选择参考图目录，或填写官方可访问的参考图 URL。");
+    }
 
-  const res = await fetch("/api/video/scan-match", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      videos: state.video.videoFiles.map((file) => ({ name: file.name })),
-      references: state.video.referenceFiles.map((file) => ({ name: file.name })),
-    }),
-  });
-  const data = await res.json();
-  state.video.matchResults = data.matches || [];
-  state.video.matchSummary = data.summary || null;
-  state.video.matchResultsExpanded = false;
-  renderVideoMatches();
+    const res = await fetch("/api/video/scan-match", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        videos: videos.map((item) => ({ name: item.name })),
+        references: references.map((item) => ({ name: item.name })),
+      }),
+    });
+    const data = await res.json();
+    state.video.matchResults = data.matches || [];
+    state.video.matchSummary = data.summary || null;
+    state.video.matchResultsExpanded = false;
+    renderVideoMatches();
+  } catch (error) {
+    alert(error.message);
+  }
 }
 
 function renderVideoMatches() {
@@ -971,28 +1149,48 @@ async function prepareVideoGenerationItems() {
     throw new Error("当前没有可生成的视频条目，请先扫描并修正匹配结果。");
   }
 
-  const videoFileMap = new Map(state.video.videoFiles.map((file) => [file.name, file]));
-  const referenceFileMap = new Map(state.video.referenceFiles.map((file) => [file.name, file]));
+  const { apiMode, videos, references } = getVideoAndReferenceEntries();
+  const videoEntryMap = new Map(videos.map((item) => [item.name, item]));
+  const referenceEntryMap = new Map(references.map((item) => [item.name, item]));
   const items = [];
 
   for (const match of candidates) {
-    const videoFile = videoFileMap.get(match.video);
-    if (!videoFile) {
+    const videoEntry = videoEntryMap.get(match.video);
+    if (!videoEntry) {
       throw new Error(`未找到视频文件：${match.video}`);
     }
 
-    els.videoProgressDetail.textContent = `正在提取视频帧：${match.video}`;
-    const frameDataUrl = await extractVideoFrame(videoFile);
+    let videoPayload = {};
+    if (videoEntry.url) {
+      els.videoProgressDetail.textContent = `正在使用视频 URL：${match.video}`;
+      videoPayload = { videoUrl: videoEntry.url };
+    } else {
+      if (apiMode) {
+        throw new Error(`真实 API 模式下缺少视频 URL：${match.video}`);
+      }
+      els.videoProgressDetail.textContent = `正在读取视频文件：${match.video}`;
+      videoPayload = { videoDataUrl: await toDataUrl(videoEntry.file) };
+    }
 
     const references = [];
     for (const referenceName of [match.referenceMain, match.referenceAlt1, match.referenceAlt2]) {
       if (!referenceName) continue;
-      const file = referenceFileMap.get(referenceName);
-      if (!file) continue;
-      references.push({
-        name: referenceName,
-        dataUrl: await toDataUrl(file),
-      });
+      const referenceEntry = referenceEntryMap.get(referenceName);
+      if (!referenceEntry) continue;
+      if (referenceEntry.url) {
+        references.push({
+          name: referenceName,
+          url: referenceEntry.url,
+        });
+      } else {
+        if (apiMode) {
+          throw new Error(`真实 API 模式下缺少参考图 URL：${referenceName}`);
+        }
+        references.push({
+          name: referenceName,
+          dataUrl: await toDataUrl(referenceEntry.file),
+        });
+      }
     }
 
     items.push({
@@ -1001,7 +1199,7 @@ async function prepareVideoGenerationItems() {
       referenceMain: match.referenceMain,
       referenceAlt1: match.referenceAlt1,
       referenceAlt2: match.referenceAlt2,
-      frameDataUrl,
+      ...videoPayload,
       references,
     });
   }
@@ -1013,7 +1211,7 @@ async function startVideoGeneration() {
   try {
     els.startVideoBtn.disabled = true;
     els.videoProgressText.textContent = "准备中";
-    els.videoProgressDetail.textContent = "正在检查匹配结果并提取视频帧。";
+    els.videoProgressDetail.textContent = "正在检查匹配结果并读取视频文件。";
 
     const videos = await prepareVideoGenerationItems();
     const res = await fetch("/api/generate/video-prompt", {
@@ -1089,6 +1287,7 @@ async function openVideoOutput() {
 function bindEvents() {
   els.navHomeBtn.addEventListener("click", () => setView("home"));
   els.navBackBtn.addEventListener("click", () => setView("home"));
+  els.shutdownAppBtn.addEventListener("click", shutdownApp);
   els.goImageViewBtn.addEventListener("click", () => setView("image"));
   els.goVideoViewBtn.addEventListener("click", () => setView("video"));
 
@@ -1185,10 +1384,15 @@ function bindEvents() {
     renderOutputList(state.video.outputs, els.videoOutputList, els.videoResultCount, "运行后会显示生成的文件");
   });
   els.openVideoOutputBtn.addEventListener("click", openVideoOutput);
+
+  window.addEventListener("pagehide", closeBrowserSession);
+  window.addEventListener("beforeunload", closeBrowserSession);
 }
 
 async function init() {
   bindEvents();
+  await registerBrowserSession();
+  startBrowserHeartbeat();
   setView("home");
   renderNamedStackList("image");
   renderNamedStackList("video");

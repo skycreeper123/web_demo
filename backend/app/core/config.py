@@ -30,6 +30,17 @@ def backend_root() -> Path:
     return Path(__file__).resolve().parents[2]
 
 
+def project_relative_path_text(path: Path) -> str:
+    resolved = path.resolve()
+    try:
+        return resolved.relative_to(project_root().resolve()).as_posix()
+    except ValueError:
+        try:
+            return resolved.relative_to(backend_root().resolve()).as_posix()
+        except ValueError:
+            return str(resolved)
+
+
 def default_output_root(kind: str | None = None) -> Path:
     root = backend_root() / "outputs"
     return root if kind is None else root / kind
@@ -54,6 +65,12 @@ def _normalize_output_path_text(value: str | None) -> str:
     if not path.is_absolute():
         return path.as_posix()
     resolved = path.resolve()
+    lowered_parts = [part.lower() for part in resolved.parts]
+    if "backend" in lowered_parts:
+        backend_index = lowered_parts.index("backend")
+        trailing_parts = resolved.parts[backend_index + 1 :]
+        if trailing_parts:
+            return Path(*trailing_parts).as_posix()
     for base in (backend_root().resolve(), project_root().resolve()):
         try:
             return resolved.relative_to(base).as_posix()
@@ -136,18 +153,18 @@ The English prompt should be natural, complete, and ready to submit to an image-
     if kind == VIDEO_PROMPT_KIND:
         return {
             "system_prompt": """You are a professional video-editing prompt generator.
-You will receive one frame captured from the source video, followed by one or two reference images.
+You will receive the source video as a publicly accessible URL, followed by one or two reference images provided as publicly accessible URLs.
 
 Rules:
-1. Treat the first image as the source video content reference.
-2. Treat the remaining images as reference images for styling, subject detail, props, costume, or composition.
+1. Treat the first media item as the source video content reference.
+2. Treat the remaining media items as reference images for styling, subject detail, props, costume, or composition.
 3. Do not replace the source video content. Use the references as editing targets or enhancement constraints.
 4. Output both a Chinese prompt and an English prompt.
 5. Return strict JSON only. Do not use Markdown. Do not add explanations.
 
 JSON schema:
 {
-  "source_summary": "brief summary of the source video frame",
+  "source_summary": "brief summary of the source video",
   "reference_summary": "brief summary of the reference images",
   "edit_goal": "what the edit should achieve",
   "zh_prompt": "complete Chinese video-editing prompt",
