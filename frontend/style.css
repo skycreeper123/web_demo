@@ -167,7 +167,7 @@ h2 {
 
 .home-grid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 1rem;
 }
 
@@ -611,9 +611,12 @@ a:hover { text-decoration: underline; }
   .workspace,
   .content-grid,
   .prompt-grid,
-  .home-grid,
   .form-grid {
     grid-template-columns: 1fr;
+  }
+
+  .home-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .stats-grid {
@@ -633,6 +636,10 @@ a:hover { text-decoration: underline; }
   }
 
   .stats-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .home-grid {
     grid-template-columns: 1fr;
   }
 

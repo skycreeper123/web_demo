@@ -44,6 +44,20 @@
         <article class="feature-card card">
           <div class="feature-copy">
             <p class="panel-kicker">Module 02</p>
+            <h2>图片 -> 图生图 Prompt</h2>
+            <p>读取图片目录，自动生成偏保真、最小改动的图生图编辑 Prompt，适合图片编辑模型直接使用。</p>
+            <ul class="feature-list">
+              <li>支持拖拽图片和文件夹</li>
+              <li>支持编辑图生图专用 Prompt 配置文件</li>
+              <li>输出 JSON、TXT 和汇总 CSV</li>
+            </ul>
+          </div>
+          <button id="goImageEditViewBtn" class="btn btn-primary">进入图生图模块</button>
+        </article>
+
+        <article class="feature-card card">
+          <div class="feature-copy">
+            <p class="panel-kicker">Module 03</p>
             <h2>视频 -> 视频编辑 Prompt</h2>
             <p>选择视频目录和参考图目录，按同名规则自动匹配，预览配对结果后生成视频编辑类 Prompt。</p>
             <ul class="feature-list">
@@ -217,6 +231,172 @@
                 <button id="openImageOutputBtn" class="btn btn-ghost">打开结果文件夹</button>
               </div>
               <div id="imageOutputList" class="output-list empty">运行后会显示生成的文件</div>
+            </article>
+          </div>
+        </section>
+      </section>
+    </section>
+
+    <section id="imageEditView" class="view" hidden>
+      <section class="stats-grid">
+        <article class="stat card">
+          <span>图片</span>
+          <strong id="imageEditSelectedCount">0</strong>
+          <small>已选择</small>
+        </article>
+        <article class="stat card">
+          <span>状态</span>
+          <strong id="imageEditStatusBadge">待开始</strong>
+          <small id="imageEditJobMeta">未启动任务</small>
+        </article>
+        <article class="stat card">
+          <span>结果</span>
+          <strong id="imageEditResultCount">0</strong>
+          <small>文件输出</small>
+        </article>
+        <article class="stat card">
+          <span>输出目录</span>
+          <strong id="imageEditOutputRootValue">未设置</strong>
+          <small>图生图模块</small>
+        </article>
+      </section>
+
+      <section class="workspace">
+        <aside class="sidebar">
+          <article class="card panel">
+            <div class="section-header">
+              <div>
+                <p class="panel-kicker">Step 01</p>
+                <h2>选择图片</h2>
+              </div>
+              <span class="chip">拖拽 / 文件夹</span>
+            </div>
+            <label class="dropzone" id="imageEditDropzone">
+              <input id="imageEditInput" type="file" accept="image/*" multiple webkitdirectory />
+              <strong>点击选择，或把图片拖到这里</strong>
+              <span>支持 JPG / PNG / WEBP，可直接选文件夹批量导入。真实 API 模式下请优先填写下方官方 URL。</span>
+            </label>
+            <div id="imageEditFileList" class="stack-list empty">还没有选择图片</div>
+            <label class="prompt-field">
+              <span>官方 API 图片 URL（每行一个，可写 `文件名 | URL`）</span>
+              <textarea id="imageEditUrlInput" class="textarea" spellcheck="false" placeholder="demo.png | https://example.com/demo.png&#10;https://example.com/another-image.jpg"></textarea>
+            </label>
+            <p class="panel-note">图生图模块会基于输入图片自动生成“保真编辑型” Prompt。真实 API 模式下建议使用可访问的 http(s) 图片 URL。</p>
+          </article>
+
+          <article class="card panel">
+            <div class="section-header">
+              <div>
+                <p class="panel-kicker">Step 02</p>
+                <h2>API 配置</h2>
+                <p class="panel-note">修改后可保存到 API 配置文件，下次启动可直接读取。</p>
+              </div>
+              <div class="section-actions">
+                <span class="chip chip-soft" id="imageEditModeBadge">Mock</span>
+                <button id="reloadImageEditApiConfigBtn" class="btn btn-ghost">重新读取</button>
+                <button id="saveImageEditApiConfigBtn" class="btn btn-primary">保存配置</button>
+              </div>
+            </div>
+            <div class="config-path">
+              <span>API 配置文件</span>
+              <code id="imageEditApiConfigPath">加载中...</code>
+            </div>
+            <div class="form-grid">
+              <label>
+                <span>API Key</span>
+                <input id="imageEditApiKey" class="input" type="password" placeholder="sk-..." />
+              </label>
+              <label>
+                <span>Base URL</span>
+                <input id="imageEditBaseUrl" class="input" type="text" placeholder="https://api.example.com/v1" />
+              </label>
+              <label>
+                <span>Model</span>
+                <input id="imageEditModel" class="input" type="text" placeholder="Prompt" />
+              </label>
+              <label>
+                <span>输出目录</span>
+                <input id="imageEditOutputDir" class="input" type="text" placeholder="D:\outputs\image_edit_prompts" />
+              </label>
+            </div>
+            <div class="toggle-row">
+              <label class="toggle"><input id="imageEditUseMock" type="checkbox" checked /> 没有 Key 时启用 mock</label>
+              <label class="toggle"><input id="imageEditOverwrite" type="checkbox" /> 覆盖已有结果</label>
+            </div>
+            <p class="panel-note">关闭 `mock` 并填写真实 API Key 后，会严格要求使用官方可访问的图片 URL。</p>
+          </article>
+        </aside>
+
+        <section class="mainpane">
+          <article class="card panel">
+            <div class="section-header">
+              <div>
+                <p class="panel-kicker">Step 03</p>
+                <h2>图生图 Prompt 配置文件</h2>
+                <p class="panel-note">修改后直接保存到本地文件，图生图模块后续默认读取这份配置。</p>
+              </div>
+              <div class="section-actions">
+                <button id="reloadImageEditPromptConfigBtn" class="btn btn-ghost">重新读取</button>
+                <button id="saveImageEditPromptConfigBtn" class="btn btn-primary">保存配置</button>
+              </div>
+            </div>
+            <div class="config-path">
+              <span>配置文件</span>
+              <code id="imageEditPromptConfigPath">加载中...</code>
+            </div>
+            <div class="prompt-grid">
+              <label class="prompt-field">
+                <span>System Prompt</span>
+                <textarea id="imageEditSystemPrompt" class="textarea" spellcheck="false"></textarea>
+              </label>
+              <label class="prompt-field">
+                <span>User Prompt</span>
+                <textarea id="imageEditUserPrompt" class="textarea" spellcheck="false"></textarea>
+              </label>
+            </div>
+          </article>
+
+          <article class="card panel">
+            <div class="section-header">
+              <div>
+                <p class="panel-kicker">Step 04</p>
+                <h2>运行与进度</h2>
+              </div>
+              <div class="section-actions">
+                <button id="reloadImageEditFilesBtn" class="btn btn-ghost">重载文件</button>
+                <button id="startImageEditBtn" class="btn btn-primary">开始生成</button>
+              </div>
+            </div>
+            <div class="progress-shell">
+              <div class="progress-track"><div id="imageEditProgressBar" class="progress-fill"></div></div>
+              <div class="progress-copy">
+                <strong id="imageEditProgressText">等待开始</strong>
+                <span id="imageEditProgressDetail">上传、生成、保存结果都会显示在这里。</span>
+              </div>
+            </div>
+          </article>
+
+          <div class="content-grid">
+            <article class="card panel">
+              <div class="section-header">
+                <div>
+                  <p class="panel-kicker">Live</p>
+                  <h2>日志</h2>
+                </div>
+                <button id="refreshImageEditJobBtn" class="btn btn-ghost">刷新</button>
+              </div>
+              <pre id="imageEditLogBox" class="log-box">暂无日志</pre>
+            </article>
+
+            <article class="card panel">
+              <div class="section-header">
+                <div>
+                  <p class="panel-kicker">Output</p>
+                  <h2>结果文件</h2>
+                </div>
+                <button id="openImageEditOutputBtn" class="btn btn-ghost">打开结果文件夹</button>
+              </div>
+              <div id="imageEditOutputList" class="output-list empty">运行后会显示生成的文件</div>
             </article>
           </div>
         </section>

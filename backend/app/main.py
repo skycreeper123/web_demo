@@ -18,6 +18,7 @@ if __package__ is None or __package__ == "":
 
 from web_demo.backend.app.core.config import (  # noqa: E402
     IMAGE_PROMPT_KIND,
+    IMAGE_EDIT_PROMPT_KIND,
     VIDEO_PROMPT_KIND,
     api_config_path,
     default_output_root,
@@ -31,6 +32,7 @@ from web_demo.backend.app.core.config import (  # noqa: E402
     save_prompt_config,
 )
 from web_demo.backend.app.services.prompt_generator import run_image_generation  # noqa: E402
+from web_demo.backend.app.services.image_edit_prompt_generator import run_image_edit_generation  # noqa: E402
 from web_demo.backend.app.services.video_matcher import build_video_matches  # noqa: E402
 from web_demo.backend.app.services.video_prompt_generator import run_video_generation  # noqa: E402
 from web_demo.backend.app.utils.file_writer import ensure_dir  # noqa: E402
@@ -281,6 +283,37 @@ def start_image_job(payload: dict[str, Any]) -> JobState:
     return _start_job_worker(job=job, total=len(images), runner=runner)
 
 
+def start_image_edit_job(payload: dict[str, Any]) -> JobState:
+    images = list(payload.get("images") or [])
+    module_config = load_api_config(IMAGE_EDIT_PROMPT_KIND)
+    output_root = resolve_output_path(
+        payload.get("outputDir")
+        or module_config.get("output_dir")
+        or DEFAULTS.image_edit_output_root
+        or default_output_root(IMAGE_EDIT_PROMPT_KIND),
+        IMAGE_EDIT_PROMPT_KIND,
+    )
+    ensure_dir(output_root)
+    job = STORE.create(kind=IMAGE_EDIT_PROMPT_KIND, total=len(images))
+
+    def runner(job_state: JobState) -> dict[str, Any]:
+        return run_image_edit_generation(
+            job_id=job_state.id,
+            images=images,
+            output_root=output_root,
+            api_key=str(payload.get("apiKey") or module_config.get("api_key") or ""),
+            base_url=str(payload.get("baseUrl") or module_config.get("base_url") or DEFAULTS.base_url),
+            model=str(payload.get("model") or module_config.get("model") or DEFAULTS.model),
+            overwrite=bool(payload.get("overwrite", module_config.get("overwrite", False))),
+            use_mock=bool(payload.get("useMock", module_config.get("use_mock", True))),
+            prompt_config=payload.get("promptConfig"),
+            log=lambda message: STORE.append_log(job_state.id, message),
+            progress=lambda current, total: STORE.update(job_state.id, progress=current, total=total),
+        )
+
+    return _start_job_worker(job=job, total=len(images), runner=runner)
+
+
 def start_video_job(payload: dict[str, Any]) -> JobState:
     videos = list(payload.get("videos") or [])
     module_config = load_api_config(VIDEO_PROMPT_KIND)
@@ -336,6 +369,7 @@ class DemoHandler(BaseHTTPRequestHandler):
 
         if path == "/api/config":
             image_api_config = load_api_config(IMAGE_PROMPT_KIND)
+            image_edit_api_config = load_api_config(IMAGE_EDIT_PROMPT_KIND)
             video_api_config = load_api_config(VIDEO_PROMPT_KIND)
             return json_response(
                 self,
@@ -346,12 +380,16 @@ class DemoHandler(BaseHTTPRequestHandler):
                     "model": DEFAULTS.model,
                     "outputRoot": DEFAULTS.output_root,
                     "imageOutputRoot": DEFAULTS.image_output_root,
+                    "imageEditOutputRoot": DEFAULTS.image_edit_output_root,
                     "videoOutputRoot": DEFAULTS.video_output_root,
                     "imagePromptConfigPath": project_relative_path_text(prompt_config_path(IMAGE_PROMPT_KIND)),
+                    "imageEditPromptConfigPath": project_relative_path_text(prompt_config_path(IMAGE_EDIT_PROMPT_KIND)),
                     "videoPromptConfigPath": project_relative_path_text(prompt_config_path(VIDEO_PROMPT_KIND)),
                     "imageApiConfigPath": project_relative_path_text(api_config_path()),
+                    "imageEditApiConfigPath": project_relative_path_text(api_config_path()),
                     "videoApiConfigPath": project_relative_path_text(api_config_path()),
                     "imageApiConfig": image_api_config,
+                    "imageEditApiConfig": image_edit_api_config,
                     "videoApiConfig": video_api_config,
                     "useMock": True,
                 },
@@ -361,10 +399,14 @@ class DemoHandler(BaseHTTPRequestHandler):
             return json_response(self, HTTPStatus.OK, _prompt_config_payload(IMAGE_PROMPT_KIND))
         if path == f"/api/prompt-config/{IMAGE_PROMPT_KIND}":
             return json_response(self, HTTPStatus.OK, _prompt_config_payload(IMAGE_PROMPT_KIND))
+        if path == f"/api/prompt-config/{IMAGE_EDIT_PROMPT_KIND}":
+            return json_response(self, HTTPStatus.OK, _prompt_config_payload(IMAGE_EDIT_PROMPT_KIND))
         if path == f"/api/prompt-config/{VIDEO_PROMPT_KIND}":
             return json_response(self, HTTPStatus.OK, _prompt_config_payload(VIDEO_PROMPT_KIND))
         if path == f"/api/runtime-config/{IMAGE_PROMPT_KIND}":
             return json_response(self, HTTPStatus.OK, _api_config_payload(IMAGE_PROMPT_KIND))
+        if path == f"/api/runtime-config/{IMAGE_EDIT_PROMPT_KIND}":
+            return json_response(self, HTTPStatus.OK, _api_config_payload(IMAGE_EDIT_PROMPT_KIND))
         if path == f"/api/runtime-config/{VIDEO_PROMPT_KIND}":
             return json_response(self, HTTPStatus.OK, _api_config_payload(VIDEO_PROMPT_KIND))
 
@@ -433,6 +475,14 @@ class DemoHandler(BaseHTTPRequestHandler):
             job = start_image_job(payload)
             return json_response(self, HTTPStatus.ACCEPTED, {"jobId": job.id, "job": job_snapshot(job)})
 
+        if path == "/api/generate/image-edit-prompt":
+            payload = read_body_json(self)
+            images = payload.get("images") or []
+            if not images:
+                return json_response(self, HTTPStatus.BAD_REQUEST, {"error": "No images supplied"})
+            job = start_image_edit_job(payload)
+            return json_response(self, HTTPStatus.ACCEPTED, {"jobId": job.id, "job": job_snapshot(job)})
+
         if path == f"/api/generate/{VIDEO_PROMPT_KIND}-prompt":
             payload = read_body_json(self)
             videos = payload.get("videos") or []
@@ -475,6 +525,19 @@ class DemoHandler(BaseHTTPRequestHandler):
                 },
             )
 
+        if path == f"/api/prompt-config/{IMAGE_EDIT_PROMPT_KIND}":
+            payload = read_body_json(self)
+            normalized = save_prompt_config(IMAGE_EDIT_PROMPT_KIND, payload.get("config") or {})
+            return json_response(
+                self,
+                HTTPStatus.OK,
+                {
+                    "ok": True,
+                    "path": project_relative_path_text(prompt_config_path(IMAGE_EDIT_PROMPT_KIND)),
+                    "config": normalized,
+                },
+            )
+
         if path == f"/api/prompt-config/{VIDEO_PROMPT_KIND}":
             payload = read_body_json(self)
             normalized = save_prompt_config(VIDEO_PROMPT_KIND, payload.get("config") or {})
@@ -491,6 +554,19 @@ class DemoHandler(BaseHTTPRequestHandler):
         if path == f"/api/runtime-config/{IMAGE_PROMPT_KIND}":
             payload = read_body_json(self)
             normalized = save_api_config(IMAGE_PROMPT_KIND, payload.get("config") or {})
+            return json_response(
+                self,
+                HTTPStatus.OK,
+                {
+                    "ok": True,
+                    "path": project_relative_path_text(api_config_path()),
+                    "config": normalized,
+                },
+            )
+
+        if path == f"/api/runtime-config/{IMAGE_EDIT_PROMPT_KIND}":
+            payload = read_body_json(self)
+            normalized = save_api_config(IMAGE_EDIT_PROMPT_KIND, payload.get("config") or {})
             return json_response(
                 self,
                 HTTPStatus.OK,
@@ -602,10 +678,12 @@ class DemoHandler(BaseHTTPRequestHandler):
 def main() -> None:
     ensure_dir(default_output_root())
     ensure_dir(default_output_root(IMAGE_PROMPT_KIND))
+    ensure_dir(default_output_root(IMAGE_EDIT_PROMPT_KIND))
     ensure_dir(default_output_root(VIDEO_PROMPT_KIND))
     ensure_dir(Path(__file__).resolve().parents[2] / "uploads")
     load_api_config()
     load_prompt_config(IMAGE_PROMPT_KIND)
+    load_prompt_config(IMAGE_EDIT_PROMPT_KIND)
     load_prompt_config(VIDEO_PROMPT_KIND)
     server = ThreadingHTTPServer(("127.0.0.1", 8000), DemoHandler)
     start_browser_session_reaper(server)

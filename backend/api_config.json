@@ -7,6 +7,14 @@
     "use_mock": false,
     "overwrite": false
   },
+  "image_edit": {
+    "api_key": "sk-VtXy0IelWIaGxPsAUTl0Y07rIk4g42A1XZbfKpUHImDTTjdS",
+    "base_url": "https://4sapi.com/v1",
+    "model": "gemini-3.6-flash",
+    "output_dir": "output",
+    "use_mock": true,
+    "overwrite": false
+  },
   "video": {
     "api_key": "sk-VtXy0IelWIaGxPsAUTl0Y07rIk4g42A1XZbfKpUHImDTTjdS",
     "base_url": "https://4sapi.com/v1",

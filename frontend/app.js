@@ -1,11 +1,15 @@
 const VIEW_META = {
   home: {
     title: "首页",
-    subtitle: "在两个工作流之间切换：图片 I2V Prompt 和视频编辑 Prompt。",
+    subtitle: "在三个工作流之间切换：图片 I2V Prompt、图生图 Prompt 和视频编辑 Prompt。",
   },
   image: {
     title: "图片 -> I2V Prompt",
     subtitle: "选择图片、编辑图片 Prompt 配置、批量生成图生视频 Prompt。",
+  },
+  imageEdit: {
+    title: "图片 -> 图生图 Prompt",
+    subtitle: "选择图片、编辑图生图 Prompt 配置、批量生成高保真图片编辑 Prompt。",
   },
   video: {
     title: "视频 -> 视频编辑 Prompt",
@@ -19,6 +23,16 @@ const state = {
   browserSessionId: "",
   browserHeartbeatTimer: null,
   image: {
+    files: [],
+    filesExpanded: false,
+    apiConfig: null,
+    promptConfig: null,
+    jobId: "",
+    job: null,
+    outputs: [],
+    pollTimer: null,
+  },
+  imageEdit: {
     files: [],
     filesExpanded: false,
     apiConfig: null,
@@ -53,8 +67,10 @@ const els = {
   shutdownAppBtn: document.getElementById("shutdownAppBtn"),
   homeView: document.getElementById("homeView"),
   imageView: document.getElementById("imageView"),
+  imageEditView: document.getElementById("imageEditView"),
   videoView: document.getElementById("videoView"),
   goImageViewBtn: document.getElementById("goImageViewBtn"),
+  goImageEditViewBtn: document.getElementById("goImageEditViewBtn"),
   goVideoViewBtn: document.getElementById("goVideoViewBtn"),
 
   imageInput: document.getElementById("imageInput"),
@@ -90,6 +106,40 @@ const els = {
   openImageOutputBtn: document.getElementById("openImageOutputBtn"),
   imageLogBox: document.getElementById("imageLogBox"),
   imageOutputList: document.getElementById("imageOutputList"),
+
+  imageEditInput: document.getElementById("imageEditInput"),
+  imageEditDropzone: document.getElementById("imageEditDropzone"),
+  imageEditFileList: document.getElementById("imageEditFileList"),
+  imageEditUrlInput: document.getElementById("imageEditUrlInput"),
+  imageEditSelectedCount: document.getElementById("imageEditSelectedCount"),
+  imageEditStatusBadge: document.getElementById("imageEditStatusBadge"),
+  imageEditJobMeta: document.getElementById("imageEditJobMeta"),
+  imageEditResultCount: document.getElementById("imageEditResultCount"),
+  imageEditOutputRootValue: document.getElementById("imageEditOutputRootValue"),
+  imageEditApiKey: document.getElementById("imageEditApiKey"),
+  imageEditBaseUrl: document.getElementById("imageEditBaseUrl"),
+  imageEditModel: document.getElementById("imageEditModel"),
+  imageEditOutputDir: document.getElementById("imageEditOutputDir"),
+  imageEditUseMock: document.getElementById("imageEditUseMock"),
+  imageEditOverwrite: document.getElementById("imageEditOverwrite"),
+  imageEditModeBadge: document.getElementById("imageEditModeBadge"),
+  imageEditApiConfigPath: document.getElementById("imageEditApiConfigPath"),
+  reloadImageEditApiConfigBtn: document.getElementById("reloadImageEditApiConfigBtn"),
+  saveImageEditApiConfigBtn: document.getElementById("saveImageEditApiConfigBtn"),
+  imageEditPromptConfigPath: document.getElementById("imageEditPromptConfigPath"),
+  imageEditSystemPrompt: document.getElementById("imageEditSystemPrompt"),
+  imageEditUserPrompt: document.getElementById("imageEditUserPrompt"),
+  reloadImageEditPromptConfigBtn: document.getElementById("reloadImageEditPromptConfigBtn"),
+  saveImageEditPromptConfigBtn: document.getElementById("saveImageEditPromptConfigBtn"),
+  imageEditProgressBar: document.getElementById("imageEditProgressBar"),
+  imageEditProgressText: document.getElementById("imageEditProgressText"),
+  imageEditProgressDetail: document.getElementById("imageEditProgressDetail"),
+  startImageEditBtn: document.getElementById("startImageEditBtn"),
+  refreshImageEditJobBtn: document.getElementById("refreshImageEditJobBtn"),
+  reloadImageEditFilesBtn: document.getElementById("reloadImageEditFilesBtn"),
+  openImageEditOutputBtn: document.getElementById("openImageEditOutputBtn"),
+  imageEditLogBox: document.getElementById("imageEditLogBox"),
+  imageEditOutputList: document.getElementById("imageEditOutputList"),
 
   videoInput: document.getElementById("videoInput"),
   videoDropzone: document.getElementById("videoDropzone"),
@@ -167,6 +217,7 @@ function normalizeDisplayPath(value) {
     "uploads/",
     "outputs/",
     "image_prompt_config.json",
+    "image_edit_prompt_config.json",
     "video_prompt_config.json",
     "api_config.json",
   ];
@@ -314,6 +365,10 @@ function getImageRemoteItems() {
   return parseRemoteMediaLines(els.imageUrlInput.value, "image");
 }
 
+function getImageEditRemoteItems() {
+  return parseRemoteMediaLines(els.imageEditUrlInput.value, "image-edit");
+}
+
 function getVideoRemoteItems() {
   return parseRemoteMediaLines(els.videoUrlInput.value, "video");
 }
@@ -324,6 +379,14 @@ function getReferenceRemoteItems() {
 
 function getImageItemsForSubmission() {
   const remoteItems = getImageRemoteItems();
+  if (remoteItems.length) {
+    return remoteItems.map((item) => ({ name: item.name, imageUrl: item.url }));
+  }
+  return null;
+}
+
+function getImageEditItemsForSubmission() {
+  const remoteItems = getImageEditRemoteItems();
   if (remoteItems.length) {
     return remoteItems.map((item) => ({ name: item.name, imageUrl: item.url }));
   }
@@ -404,6 +467,7 @@ function setView(view) {
   state.currentView = view;
   els.homeView.hidden = view !== "home";
   els.imageView.hidden = view !== "image";
+  els.imageEditView.hidden = view !== "imageEdit";
   els.videoView.hidden = view !== "video";
   els.viewTitle.textContent = VIEW_META[view].title;
   els.viewSubtitle.textContent = VIEW_META[view].subtitle;
@@ -497,6 +561,14 @@ function listViewConfig(toggleKey) {
         emptyText: "还没有选择图片",
         label: "图片",
       };
+    case "imageEdit":
+      return {
+        files: state.imageEdit.files,
+        expanded: state.imageEdit.filesExpanded,
+        target: els.imageEditFileList,
+        emptyText: "还没有选择图片",
+        label: "图片",
+      };
     case "video":
       return {
         files: state.video.videoFiles,
@@ -533,6 +605,9 @@ function setListExpanded(toggleKey, expanded) {
   switch (toggleKey) {
     case "image":
       state.image.filesExpanded = expanded;
+      break;
+    case "imageEdit":
+      state.imageEdit.filesExpanded = expanded;
       break;
     case "video":
       state.video.videoFilesExpanded = expanded;
@@ -598,6 +673,23 @@ function renderImageJob(job) {
   els.imageOutputRootValue.textContent = normalizeDisplayPath(job.output_dir) || normalizeDisplayPath(els.imageOutputDir.value.trim()) || "未设置";
 }
 
+function renderImageEditJob(job) {
+  state.imageEdit.job = job;
+  const percent = job.total ? Math.round((job.progress / job.total) * 100) : 0;
+  els.imageEditProgressBar.style.width = `${percent}%`;
+  els.imageEditStatusBadge.textContent = toReadableJobStatus(job.status);
+  els.imageEditJobMeta.textContent = job.id ? `Job ${job.id} · ${job.progress}/${job.total}` : "未启动任务";
+  els.imageEditProgressText.textContent = toReadableJobStatus(job.status);
+  els.imageEditProgressDetail.textContent = job.status === "completed"
+    ? "图生图 Prompt 已生成完成。"
+    : job.status === "failed"
+      ? `任务失败：${job.error || "unknown"}`
+      : job.status === "running"
+        ? "正在分析图片并生成图生图 Prompt。"
+        : "等待开始。";
+  els.imageEditOutputRootValue.textContent = normalizeDisplayPath(job.output_dir) || normalizeDisplayPath(els.imageEditOutputDir.value.trim()) || "未设置";
+}
+
 function renderVideoJob(job) {
   state.video.job = job;
   const percent = job.total ? Math.round((job.progress / job.total) * 100) : 0;
@@ -617,6 +709,11 @@ function setImageLog(lines) {
   els.imageLogBox.textContent = normalizedLines.length ? normalizedLines.join("\n") : "暂无日志";
 }
 
+function setImageEditLog(lines) {
+  const normalizedLines = normalizeLogLines(lines);
+  els.imageEditLogBox.textContent = normalizedLines.length ? normalizedLines.join("\n") : "暂无日志";
+}
+
 function setVideoLog(lines) {
   const normalizedLines = normalizeLogLines(lines);
   els.videoLogBox.textContent = normalizedLines.length ? normalizedLines.join("\n") : "暂无日志";
@@ -626,6 +723,13 @@ function getImagePromptPayload() {
   return {
     system_prompt: els.imageSystemPrompt.value,
     user_text: els.imageUserPrompt.value,
+  };
+}
+
+function getImageEditPromptPayload() {
+  return {
+    system_prompt: els.imageEditSystemPrompt.value,
+    user_text: els.imageEditUserPrompt.value,
   };
 }
 
@@ -641,6 +745,13 @@ function renderImagePromptConfig(data) {
   els.imagePromptConfigPath.textContent = normalizeDisplayPath(data.path) || "未找到配置文件";
   els.imageSystemPrompt.value = data.config?.system_prompt || "";
   els.imageUserPrompt.value = data.config?.user_text || "";
+}
+
+function renderImageEditPromptConfig(data) {
+  state.imageEdit.promptConfig = data.config || null;
+  els.imageEditPromptConfigPath.textContent = normalizeDisplayPath(data.path) || "未找到配置文件";
+  els.imageEditSystemPrompt.value = data.config?.system_prompt || "";
+  els.imageEditUserPrompt.value = data.config?.user_text || "";
 }
 
 function renderVideoPromptConfig(data) {
@@ -678,6 +789,12 @@ async function loadImagePromptConfig() {
   renderImagePromptConfig(data);
 }
 
+async function loadImageEditPromptConfig() {
+  const res = await fetch("/api/prompt-config/image_edit");
+  const data = await res.json();
+  renderImageEditPromptConfig(data);
+}
+
 async function loadVideoPromptConfig() {
   const res = await fetch("/api/prompt-config/video");
   const data = await res.json();
@@ -710,6 +827,19 @@ async function saveImagePromptConfig() {
   }
 }
 
+async function saveImageEditPromptConfig() {
+  try {
+    const data = await savePromptConfig("image_edit", {
+      ...(state.imageEdit.promptConfig || {}),
+      ...getImageEditPromptPayload(),
+    });
+    renderImageEditPromptConfig(data);
+    alert("图生图 Prompt 配置已保存");
+  } catch (error) {
+    alert(error.message);
+  }
+}
+
 async function saveVideoPromptConfig() {
   try {
     const data = await savePromptConfig("video", {
@@ -731,6 +861,17 @@ function getImageApiConfigPayload() {
     output_dir: els.imageOutputDir.value.trim(),
     use_mock: els.imageUseMock.checked,
     overwrite: els.imageOverwrite.checked,
+  };
+}
+
+function getImageEditApiConfigPayload() {
+  return {
+    api_key: els.imageEditApiKey.value.trim(),
+    base_url: els.imageEditBaseUrl.value.trim(),
+    model: els.imageEditModel.value.trim(),
+    output_dir: els.imageEditOutputDir.value.trim(),
+    use_mock: els.imageEditUseMock.checked,
+    overwrite: els.imageEditOverwrite.checked,
   };
 }
 
@@ -759,6 +900,20 @@ function renderImageApiConfig(data) {
   setModuleModeBadge(els.imageApiKey, els.imageUseMock, els.imageModeBadge);
 }
 
+function renderImageEditApiConfig(data) {
+  state.imageEdit.apiConfig = data.config || null;
+  els.imageEditApiConfigPath.textContent = normalizeDisplayPath(data.path) || "未找到配置文件";
+  els.imageEditApiKey.value = data.config?.api_key || "";
+  els.imageEditBaseUrl.value = data.config?.base_url || "";
+  els.imageEditModel.value = data.config?.model || "";
+  els.imageEditOutputDir.value = normalizeDisplayPath(data.config?.output_dir || "");
+  els.imageEditUseMock.checked = data.config?.use_mock ?? true;
+  els.imageEditOverwrite.checked = data.config?.overwrite ?? false;
+  els.imageEditApiKey.placeholder = "直接粘贴 API Key";
+  els.imageEditOutputRootValue.textContent = normalizeDisplayPath(els.imageEditOutputDir.value.trim()) || "未设置";
+  setModuleModeBadge(els.imageEditApiKey, els.imageEditUseMock, els.imageEditModeBadge);
+}
+
 function renderVideoApiConfig(data) {
   state.video.apiConfig = data.config || null;
   els.videoApiConfigPath.textContent = normalizeDisplayPath(data.path) || "未找到配置文件";
@@ -777,6 +932,7 @@ async function loadDefaults() {
   const data = await res.json();
   state.defaults = data;
   renderImageApiConfig({ path: data.imageApiConfigPath, config: data.imageApiConfig });
+  renderImageEditApiConfig({ path: data.imageEditApiConfigPath, config: data.imageEditApiConfig });
   renderVideoApiConfig({ path: data.videoApiConfigPath, config: data.videoApiConfig });
 }
 
@@ -790,6 +946,12 @@ async function loadVideoApiConfig() {
   const res = await fetch("/api/runtime-config/video");
   const data = await res.json();
   renderVideoApiConfig(data);
+}
+
+async function loadImageEditApiConfig() {
+  const res = await fetch("/api/runtime-config/image_edit");
+  const data = await res.json();
+  renderImageEditApiConfig(data);
 }
 
 async function saveApiConfig(kind, config) {
@@ -813,6 +975,19 @@ async function saveImageApiConfig() {
     });
     renderImageApiConfig(data);
     alert("图片 API 配置已保存");
+  } catch (error) {
+    alert(error.message);
+  }
+}
+
+async function saveImageEditApiConfig() {
+  try {
+    const data = await saveApiConfig("image_edit", {
+      ...(state.imageEdit.apiConfig || {}),
+      ...getImageEditApiConfigPayload(),
+    });
+    renderImageEditApiConfig(data);
+    alert("图生图 API 配置已保存");
   } catch (error) {
     alert(error.message);
   }
@@ -945,6 +1120,94 @@ async function openImageOutput() {
     return;
   }
   const res = await fetch(`/api/jobs/${state.image.jobId}/open-output`, { method: "POST" });
+  const data = await res.json();
+  if (!res.ok) {
+    alert(data.error || "无法打开输出目录");
+  }
+}
+
+async function startImageEditGeneration() {
+  try {
+    els.startImageEditBtn.disabled = true;
+    els.imageEditProgressText.textContent = "准备中";
+    els.imageEditProgressDetail.textContent = "正在整理图片输入并提交任务。";
+
+    let images = getImageEditItemsForSubmission();
+    if (!images) {
+      if (!state.imageEdit.files.length) {
+        throw new Error("请先选择图片，或填写可访问的图片 URL。");
+      }
+      images = [];
+      for (const file of state.imageEdit.files) {
+        const dataUrl = await toDataUrl(file);
+        images.push({ name: file.name, dataUrl });
+      }
+    }
+
+    const res = await fetch("/api/generate/image-edit-prompt", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        apiKey: els.imageEditApiKey.value.trim(),
+        baseUrl: els.imageEditBaseUrl.value.trim(),
+        model: els.imageEditModel.value.trim(),
+        outputDir: els.imageEditOutputDir.value.trim(),
+        overwrite: els.imageEditOverwrite.checked,
+        useMock: els.imageEditUseMock.checked,
+        promptConfig: {
+          ...(state.imageEdit.promptConfig || {}),
+          ...getImageEditPromptPayload(),
+        },
+        images,
+      }),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      throw new Error(data.error || "启动失败");
+    }
+
+    state.imageEdit.jobId = data.jobId;
+    setImageEditLog(data.job?.logs || []);
+    renderImageEditJob(data.job);
+    pollImageEditJob();
+  } catch (error) {
+    els.startImageEditBtn.disabled = false;
+    alert(error.message);
+  }
+}
+
+async function pollImageEditJob() {
+  if (state.imageEdit.pollTimer) clearInterval(state.imageEdit.pollTimer);
+  const tick = async () => {
+    if (!state.imageEdit.jobId) return;
+    const res = await fetch(`/api/jobs/${state.imageEdit.jobId}`);
+    const job = await res.json();
+    renderImageEditJob(job);
+    setImageEditLog(job.logs || []);
+
+    if (job.output_dir) {
+      const filesRes = await fetch(`/api/jobs/${state.imageEdit.jobId}/files`);
+      const filesData = await filesRes.json();
+      state.imageEdit.outputs = filesData.files || [];
+      renderOutputList(state.imageEdit.outputs, els.imageEditOutputList, els.imageEditResultCount, "运行后会显示生成的文件");
+    }
+
+    if (job.status === "completed" || job.status === "failed") {
+      els.startImageEditBtn.disabled = false;
+      clearInterval(state.imageEdit.pollTimer);
+      state.imageEdit.pollTimer = null;
+    }
+  };
+  await tick();
+  state.imageEdit.pollTimer = setInterval(tick, 1000);
+}
+
+async function openImageEditOutput() {
+  if (!state.imageEdit.jobId) {
+    alert("请先运行一次图生图生成任务");
+    return;
+  }
+  const res = await fetch(`/api/jobs/${state.imageEdit.jobId}/open-output`, { method: "POST" });
   const data = await res.json();
   if (!res.ok) {
     alert(data.error || "无法打开输出目录");
@@ -1253,6 +1516,7 @@ function bindEvents() {
   els.navBackBtn.addEventListener("click", () => setView("home"));
   els.shutdownAppBtn.addEventListener("click", shutdownApp);
   els.goImageViewBtn.addEventListener("click", () => setView("image"));
+  els.goImageEditViewBtn.addEventListener("click", () => setView("imageEdit"));
   els.goVideoViewBtn.addEventListener("click", () => setView("video"));
 
   document.addEventListener("click", (event) => {
@@ -1277,6 +1541,12 @@ function bindEvents() {
     renderNamedStackList("image");
     els.imageSelectedCount.textContent = String(state.image.files.length);
   });
+  els.imageEditInput.addEventListener("change", () => {
+    state.imageEdit.files = Array.from(els.imageEditInput.files || []);
+    state.imageEdit.filesExpanded = false;
+    renderNamedStackList("imageEdit");
+    els.imageEditSelectedCount.textContent = String(state.imageEdit.files.length);
+  });
   els.videoInput.addEventListener("change", () => {
     state.video.videoFiles = Array.from(els.videoInput.files || []);
     state.video.videoFilesExpanded = false;
@@ -1295,6 +1565,12 @@ function bindEvents() {
     state.image.filesExpanded = false;
     renderNamedStackList("image");
     els.imageSelectedCount.textContent = String(state.image.files.length);
+  });
+  bindDropzone(els.imageEditDropzone, els.imageEditInput, (files) => {
+    state.imageEdit.files = files.filter((file) => file.type.startsWith("image/"));
+    state.imageEdit.filesExpanded = false;
+    renderNamedStackList("imageEdit");
+    els.imageEditSelectedCount.textContent = String(state.imageEdit.files.length);
   });
   bindDropzone(els.videoDropzone, els.videoInput, (files) => {
     state.video.videoFiles = files.filter((file) => file.type.startsWith("video/") || /\.(mp4|mov|avi|mkv|webm)$/i.test(file.name));
@@ -1315,6 +1591,12 @@ function bindEvents() {
     els.imageOutputRootValue.textContent = els.imageOutputDir.value.trim() || "未设置";
   });
 
+  els.imageEditApiKey.addEventListener("input", () => setModuleModeBadge(els.imageEditApiKey, els.imageEditUseMock, els.imageEditModeBadge));
+  els.imageEditUseMock.addEventListener("change", () => setModuleModeBadge(els.imageEditApiKey, els.imageEditUseMock, els.imageEditModeBadge));
+  els.imageEditOutputDir.addEventListener("input", () => {
+    els.imageEditOutputRootValue.textContent = els.imageEditOutputDir.value.trim() || "未设置";
+  });
+
   els.videoApiKey.addEventListener("input", () => setModuleModeBadge(els.videoApiKey, els.videoUseMock, els.videoModeBadge));
   els.videoUseMock.addEventListener("change", () => setModuleModeBadge(els.videoApiKey, els.videoUseMock, els.videoModeBadge));
 
@@ -1332,6 +1614,21 @@ function bindEvents() {
     renderOutputList(state.image.outputs, els.imageOutputList, els.imageResultCount, "运行后会显示生成的文件");
   });
   els.openImageOutputBtn.addEventListener("click", openImageOutput);
+
+  els.reloadImageEditApiConfigBtn.addEventListener("click", loadImageEditApiConfig);
+  els.saveImageEditApiConfigBtn.addEventListener("click", saveImageEditApiConfig);
+  els.reloadImageEditPromptConfigBtn.addEventListener("click", loadImageEditPromptConfig);
+  els.saveImageEditPromptConfigBtn.addEventListener("click", saveImageEditPromptConfig);
+  els.startImageEditBtn.addEventListener("click", startImageEditGeneration);
+  els.refreshImageEditJobBtn.addEventListener("click", () => state.imageEdit.jobId && pollImageEditJob());
+  els.reloadImageEditFilesBtn.addEventListener("click", async () => {
+    if (!state.imageEdit.jobId) return;
+    const res = await fetch(`/api/jobs/${state.imageEdit.jobId}/files`);
+    const data = await res.json();
+    state.imageEdit.outputs = data.files || [];
+    renderOutputList(state.imageEdit.outputs, els.imageEditOutputList, els.imageEditResultCount, "运行后会显示生成的文件");
+  });
+  els.openImageEditOutputBtn.addEventListener("click", openImageEditOutput);
 
   els.reloadVideoApiConfigBtn.addEventListener("click", loadVideoApiConfig);
   els.saveVideoApiConfigBtn.addEventListener("click", saveVideoApiConfig);
@@ -1359,17 +1656,22 @@ async function init() {
   startBrowserHeartbeat();
   setView("home");
   renderNamedStackList("image");
+  renderNamedStackList("imageEdit");
   renderNamedStackList("video");
   renderNamedStackList("reference");
   renderOutputList([], els.imageOutputList, els.imageResultCount, "运行后会显示生成的文件");
+  renderOutputList([], els.imageEditOutputList, els.imageEditResultCount, "运行后会显示生成的文件");
   renderOutputList([], els.videoOutputList, els.videoResultCount, "运行后会显示生成的文件");
   renderImageJob({ id: "", status: "idle", progress: 0, total: 0, error: "", output_dir: "" });
+  renderImageEditJob({ id: "", status: "idle", progress: 0, total: 0, error: "", output_dir: "" });
   renderVideoJob({ id: "", status: "idle", progress: 0, total: 0, error: "", output_dir: "" });
   renderVideoMatches();
   setImageLog([]);
+  setImageEditLog([]);
   setVideoLog([]);
   await loadDefaults();
   await loadImagePromptConfig();
+  await loadImageEditPromptConfig();
   await loadVideoPromptConfig();
 }
 
