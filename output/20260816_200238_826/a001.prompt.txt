@@ -1,0 +1,14 @@
+Chinese Prompt:
+基于输入图像生成一段高清短视频，完全保留原图的主题、构图、色彩与细节。主体为一位面带慈祥笑容的老妇人，身穿蓝色花纹绒面外套和红领内搭，佩戴紫红色头巾。核心动作：老妇人缓缓轻微点头，嘴角进一步微微上扬，展现出更加温暖慈祥的微笑，双眼自然微眨。运动方向与速度：幅度极小、速度缓慢平稳的头部微动与表情转变。镜头语言：维持近景人像视角，镜头进行极缓慢的微推进（Slow Push-in），增强面部情感表达。环境与光影变化：维持原图强烈的暖色日光效果，光影随头部微动在脸部皱纹与布料纹理上产生自然的微弱流转。整体风格与氛围：真实纪实摄影质感，温馨、慈爱而沉静。需保持不变要素：面部结构与皱纹细节、服装色彩与绒面材质、背景明暗对比；严禁出现：面部扭曲变形、过度夸张的动作、服装变色或不协调的镜头晃动。
+
+English Prompt:
+A continuous video generated from the input image, preserving the original character identity, lighting, and visual style. The subject is an elderly woman with deep, expressive facial wrinkles, wearing a purple headscarf and a vibrant blue floral velvet coat over a red collar. She gently turns her focus, subtly tilting her head with a warm, comforting smile expanding across her face, accompanied by soft, natural eye blinking. The motion is slow, gentle, and lifelike. The camera maintains a tight portrait composition with a very slow, subtle zoom-in on her face. Bright, warm sunlight casts natural highlights across her face and the velvet fabric. The atmosphere is serene, compassionate, and documentary-like, keeping the original dark background and distinct lighting completely intact.
+
+Keep Unchanged:
+Facial identity, deep wrinkle patterns, and skin texture; Purple headscarf, red turtleneck, and blue embroidered velvet jacket; Dark, softly blurred background; Bright directional sunlight and shadows
+
+Avoid:
+Facial morphing or smoothing of wrinkles; Exaggerated or unnatural facial expressions; Changes in clothing texture, color, or style; Rapid motion, shaking camera, or scene transitions
+
+Quality Check:
+Facial wrinkle texture remains sharp and consistent; Smile transition looks natural and emotional; Velvet sheen and sunlight highlights adapt dynamically to slight movements; Framing stays tightly focused on the portrait

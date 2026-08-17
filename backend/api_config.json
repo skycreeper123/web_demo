@@ -1,18 +1,18 @@
 {
   "image": {
-    "api_key": "",
-    "base_url": "https://apinebula.ai/v1",
-    "model": "Prompt",
-    "output_dir": "outputs/image",
-    "use_mock": true,
+    "api_key": "sk-VtXy0IelWIaGxPsAUTl0Y07rIk4g42A1XZbfKpUHImDTTjdS",
+    "base_url": "https://4sapi.com/v1",
+    "model": "gemini-3.6-flash",
+    "output_dir": "output",
+    "use_mock": false,
     "overwrite": false
   },
   "video": {
-    "api_key": "",
-    "base_url": "https://apinebula.ai/v1",
-    "model": "Prompt",
-    "output_dir": "outputs/video",
-    "use_mock": true,
+    "api_key": "sk-VtXy0IelWIaGxPsAUTl0Y07rIk4g42A1XZbfKpUHImDTTjdS",
+    "base_url": "https://4sapi.com/v1",
+    "model": "gemini-3.6-flash",
+    "output_dir": "output",
+    "use_mock": false,
     "overwrite": false
   }
 }

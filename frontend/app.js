@@ -161,6 +161,7 @@ function normalizeDisplayPath(value) {
 
   const normalized = text.replaceAll("\\", "/");
   const markers = [
+    "output/",
     "backend/",
     "frontend/",
     "uploads/",
@@ -323,49 +324,18 @@ function getReferenceRemoteItems() {
 
 function getImageItemsForSubmission() {
   const remoteItems = getImageRemoteItems();
-  const apiMode = isRealApiMode(els.imageApiKey, els.imageUseMock);
-
-  if (apiMode) {
-    if (!remoteItems.length) {
-      throw new Error("真实 API 模式下，请提供官方可访问的图片 URL；不要直接发送本地图片文件。");
-    }
-    return remoteItems.map((item) => ({ name: item.name, imageUrl: item.url }));
-  }
-
   if (remoteItems.length) {
     return remoteItems.map((item) => ({ name: item.name, imageUrl: item.url }));
   }
-
   return null;
 }
 
 function getVideoAndReferenceEntries() {
-  const apiMode = isRealApiMode(els.videoApiKey, els.videoUseMock);
   const remoteVideos = getVideoRemoteItems();
   const remoteReferences = getReferenceRemoteItems();
-
-  if (apiMode) {
-    if (!remoteVideos.length) {
-      throw new Error("真实 API 模式下，请提供官方可访问的视频 URL。");
-    }
-    if (!remoteReferences.length) {
-      throw new Error("真实 API 模式下，请提供官方可访问的参考图 URL。");
-    }
-    return { apiMode, videos: remoteVideos, references: remoteReferences };
-  }
-
-  if (remoteVideos.length || remoteReferences.length) {
-    return {
-      apiMode,
-      videos: remoteVideos.length ? remoteVideos : state.video.videoFiles.map((file) => ({ name: file.name, file })),
-      references: remoteReferences.length ? remoteReferences : state.video.referenceFiles.map((file) => ({ name: file.name, file })),
-    };
-  }
-
   return {
-    apiMode,
-    videos: state.video.videoFiles.map((file) => ({ name: file.name, file })),
-    references: state.video.referenceFiles.map((file) => ({ name: file.name, file })),
+    videos: remoteVideos.length ? remoteVideos : state.video.videoFiles.map((file) => ({ name: file.name, file })),
+    references: remoteReferences.length ? remoteReferences : state.video.referenceFiles.map((file) => ({ name: file.name, file })),
   };
 }
 
@@ -902,7 +872,7 @@ async function startImageGeneration() {
     let images = getImageItemsForSubmission();
     if (!images) {
       if (!state.image.files.length) {
-        throw new Error("请先选择图片，或填写官方可访问的图片 URL。");
+        throw new Error("请先选择图片，或填写可访问的图片 URL。");
       }
       images = [];
       for (const file of state.image.files) {
@@ -985,10 +955,10 @@ async function scanVideoMatches() {
   try {
     const { videos, references } = getVideoAndReferenceEntries();
     if (!videos.length) {
-      throw new Error("请先选择视频目录，或填写官方可访问的视频 URL。");
+      throw new Error("请先选择视频文件，或填写可访问的视频 URL。");
     }
     if (!references.length) {
-      throw new Error("请先选择参考图目录，或填写官方可访问的参考图 URL。");
+      throw new Error("请先选择参考图文件，或填写可访问的参考图 URL。");
     }
 
     const res = await fetch("/api/video/scan-match", {
@@ -1149,7 +1119,7 @@ async function prepareVideoGenerationItems() {
     throw new Error("当前没有可生成的视频条目，请先扫描并修正匹配结果。");
   }
 
-  const { apiMode, videos, references } = getVideoAndReferenceEntries();
+  const { videos, references } = getVideoAndReferenceEntries();
   const videoEntryMap = new Map(videos.map((item) => [item.name, item]));
   const referenceEntryMap = new Map(references.map((item) => [item.name, item]));
   const items = [];
@@ -1165,9 +1135,6 @@ async function prepareVideoGenerationItems() {
       els.videoProgressDetail.textContent = `正在使用视频 URL：${match.video}`;
       videoPayload = { videoUrl: videoEntry.url };
     } else {
-      if (apiMode) {
-        throw new Error(`真实 API 模式下缺少视频 URL：${match.video}`);
-      }
       els.videoProgressDetail.textContent = `正在读取视频文件：${match.video}`;
       videoPayload = { videoDataUrl: await toDataUrl(videoEntry.file) };
     }
@@ -1183,9 +1150,6 @@ async function prepareVideoGenerationItems() {
           url: referenceEntry.url,
         });
       } else {
-        if (apiMode) {
-          throw new Error(`真实 API 模式下缺少参考图 URL：${referenceName}`);
-        }
         references.push({
           name: referenceName,
           dataUrl: await toDataUrl(referenceEntry.file),

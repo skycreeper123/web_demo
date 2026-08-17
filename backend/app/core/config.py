@@ -42,19 +42,30 @@ def project_relative_path_text(path: Path) -> str:
 
 
 def default_output_root(kind: str | None = None) -> Path:
-    root = backend_root() / "outputs"
-    return root if kind is None else root / kind
+    return project_root() / "output"
 
 
 def default_output_root_text(kind: str | None = None) -> str:
-    path = default_output_root(kind).resolve()
-    try:
-        return path.relative_to(backend_root().resolve()).as_posix()
-    except ValueError:
-        try:
-            return path.relative_to(project_root().resolve()).as_posix()
-        except ValueError:
-            return str(path)
+    return project_relative_path_text(default_output_root(kind))
+
+
+def _normalize_relative_output_dir_text(text: str) -> str:
+    normalized = Path(text).as_posix().strip()
+    normalized = normalized.lstrip("./")
+    lowered = normalized.lower()
+    legacy_values = {
+        "outputs",
+        "outputs/image",
+        "outputs/video",
+        "backend/outputs",
+        "backend/outputs/image",
+        "backend/outputs/video",
+        "output/image",
+        "output/video",
+    }
+    if lowered in legacy_values:
+        return "output"
+    return normalized
 
 
 def _normalize_output_path_text(value: str | None) -> str:
@@ -63,17 +74,17 @@ def _normalize_output_path_text(value: str | None) -> str:
         return ""
     path = Path(text)
     if not path.is_absolute():
-        return path.as_posix()
+        return _normalize_relative_output_dir_text(path.as_posix())
     resolved = path.resolve()
     lowered_parts = [part.lower() for part in resolved.parts]
     if "backend" in lowered_parts:
         backend_index = lowered_parts.index("backend")
         trailing_parts = resolved.parts[backend_index + 1 :]
         if trailing_parts:
-            return Path(*trailing_parts).as_posix()
+            return _normalize_relative_output_dir_text(Path(*trailing_parts).as_posix())
     for base in (backend_root().resolve(), project_root().resolve()):
         try:
-            return resolved.relative_to(base).as_posix()
+            return _normalize_relative_output_dir_text(resolved.relative_to(base).as_posix())
         except ValueError:
             continue
     return str(path)
@@ -86,7 +97,8 @@ def resolve_output_path(value: str | None, kind: str | None = None) -> Path:
     path = Path(text)
     if path.is_absolute():
         return path
-    return (backend_root() / path).resolve()
+    normalized = _normalize_relative_output_dir_text(path.as_posix())
+    return (project_root() / normalized).resolve()
 
 
 def default_upload_root() -> Path:

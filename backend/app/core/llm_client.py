@@ -29,7 +29,7 @@ class OpenAICompatibleClient:
     def chat_with_media_urls(self, system_prompt: str, user_text: str, media_urls: list[str]) -> LLMResponse:
         content: list[dict[str, Any]] = [{"type": "text", "text": self._build_prompt_text(system_prompt, user_text)}]
         for media_url in media_urls:
-            self._validate_remote_media_url(media_url)
+            self._validate_media_url(media_url)
             content.append({"type": "image_url", "image_url": {"url": media_url}})
 
         url = self.base_url.rstrip("/") + "/chat/completions"
@@ -74,10 +74,14 @@ class OpenAICompatibleClient:
         return system_text or user_content
 
     @staticmethod
-    def _validate_remote_media_url(media_url: str) -> None:
-        parsed = urlparse(str(media_url).strip())
-        if parsed.scheme not in {"http", "https"} or not parsed.netloc:
-            raise RuntimeError("Official API mode requires publicly accessible http(s) media URLs.")
+    def _validate_media_url(media_url: str) -> None:
+        text = str(media_url).strip()
+        if text.startswith("data:") and ";base64," in text:
+            return
+        parsed = urlparse(text)
+        if parsed.scheme in {"http", "https"} and parsed.netloc:
+            return
+        raise RuntimeError("Media input must be a publicly accessible http(s) URL or a base64 data URL.")
 
     @staticmethod
     def _extract_text(raw: dict[str, Any]) -> str:

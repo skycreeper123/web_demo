@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 from dataclasses import dataclass, field
+from datetime import datetime
 from pathlib import Path
 from typing import Any, Callable
 
@@ -109,6 +110,16 @@ def _format_text(payload: dict[str, Any]) -> str:
     return "\n".join(lines).strip() + "\n"
 
 
+def _create_timestamp_output_dir(output_root: Path) -> Path:
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")[:-3]
+    candidate = output_root / timestamp
+    suffix = 1
+    while candidate.exists():
+        candidate = output_root / f"{timestamp}_{suffix}"
+        suffix += 1
+    return ensure_dir(candidate)
+
+
 def run_video_generation(
     *,
     job_id: str,
@@ -127,7 +138,7 @@ def run_video_generation(
     config = merge_prompt_config(VIDEO_PROMPT_KIND, prompt_config) if prompt_config else load_prompt_config(VIDEO_PROMPT_KIND)
     system_prompt = str(config.get("system_prompt", "")).strip()
     base_user_text = str(config.get("user_text", "")).strip()
-    job_output_dir = ensure_dir(output_root / job_id)
+    job_output_dir = _create_timestamp_output_dir(output_root)
     assets: list[GeneratedVideoAsset] = []
     failures: list[dict[str, str]] = []
     total = len(videos)
