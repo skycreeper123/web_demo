@@ -55,6 +55,42 @@
             </div>
           </div>
         </article>
+
+        <article class="feature-card feature-card-wide card clip-feature-card">
+          <div class="feature-layout">
+            <div class="feature-copy">
+              <p class="panel-kicker">Batch Editing</p>
+              <h2>视频剪辑工作台</h2>
+              <p>把 `batch_editing` 目录里的批量裁切和双文件夹合并能力统一接入 app，直接填写本地路径即可运行，不需要先把大视频上传到浏览器。</p>
+              <ul class="feature-list">
+                <li>支持保留前 / 后几秒和前 / 后百分比</li>
+                <li>支持 ffmpeg 快速前半段裁切和 OpenCV 帧级裁切</li>
+                <li>支持两个视频文件夹按排序后一一合并</li>
+              </ul>
+              <div class="feature-actions">
+                <button id="goClipStudioBtn" class="btn btn-primary">进入视频剪辑工作台</button>
+              </div>
+            </div>
+
+            <div class="module-overview card-shell">
+              <div class="section-header compact">
+                <div>
+                  <p class="panel-kicker">Included</p>
+                  <h2>已集成功能</h2>
+                </div>
+                <span class="chip chip-soft">本地路径</span>
+              </div>
+              <div class="clip-overview-grid">
+                <span class="chip">按秒裁切</span>
+                <span class="chip">按比例裁切</span>
+                <span class="chip">前半段裁切</span>
+                <span class="chip">后半段裁切</span>
+                <span class="chip">双文件夹合并</span>
+              </div>
+              <p class="panel-note">每次任务会创建独立输出目录，并保留裁切视频、预览帧和汇总清单。</p>
+            </div>
+          </div>
+        </article>
       </div>
     </section>
 
@@ -619,6 +655,147 @@
           </div>
         </section>
       </section>
+      </section>
+    </section>
+
+    <section id="clipStudioView" class="view" hidden>
+      <section class="stats-grid">
+        <article class="stat card">
+          <span>预设</span>
+          <strong id="clipPresetBadge">未选择</strong>
+          <small id="clipPresetMeta">等待选择剪辑方式</small>
+        </article>
+        <article class="stat card">
+          <span>输入视频</span>
+          <strong id="clipInputCount">0</strong>
+          <small id="clipInputMeta">等待扫描本地目录</small>
+        </article>
+        <article class="stat card">
+          <span>状态</span>
+          <strong id="clipStatusBadge">待开始</strong>
+          <small id="clipJobMeta">未启动任务</small>
+        </article>
+        <article class="stat card">
+          <span>结果</span>
+          <strong id="clipResultCount">0</strong>
+          <small id="clipOutputRootValue">未设置输出目录</small>
+        </article>
+      </section>
+
+      <section class="workspace">
+        <aside class="sidebar">
+          <article class="card panel">
+            <div class="section-header">
+              <div>
+                <p class="panel-kicker">Step 01</p>
+                <h2>选择处理模式</h2>
+              </div>
+              <span class="chip chip-soft">batch_editing</span>
+            </div>
+            <div class="segmented-row">
+              <button id="clipSingleModeBtn" type="button" class="btn btn-primary" data-clip-mode="single">单文件夹裁切</button>
+              <button id="clipMergeModeBtn" type="button" class="btn btn-ghost" data-clip-mode="merge">双文件夹合并</button>
+            </div>
+            <p id="clipModeDescription" class="panel-note">从一个视频文件夹中按预设批量裁切，并生成预览帧。</p>
+          </article>
+
+          <article class="card panel">
+            <div class="section-header">
+              <div>
+                <p class="panel-kicker">Step 02</p>
+                <h2>选择剪辑预设</h2>
+              </div>
+            </div>
+            <label class="prompt-field">
+              <span>批处理预设</span>
+              <select id="clipPresetSelect" class="input"></select>
+            </label>
+            <div id="clipPresetDescription" class="rule-box">加载预设中...</div>
+          </article>
+
+          <article class="card panel">
+            <div class="section-header">
+              <div>
+                <p class="panel-kicker">Step 03</p>
+                <h2>本地输入路径</h2>
+              </div>
+            </div>
+            <label id="clipSingleInputField" class="prompt-field">
+              <span>视频输入文件夹</span>
+              <input id="clipInputDir" class="input" type="text" placeholder="D:\videos\input_videos" />
+            </label>
+            <div id="clipMergeInputFields" hidden>
+              <label class="prompt-field">
+                <span>文件夹 A</span>
+                <input id="clipInputDirA" class="input" type="text" placeholder="D:\videos\input_folder_a" />
+              </label>
+              <label class="prompt-field">
+                <span>文件夹 B</span>
+                <input id="clipInputDirB" class="input" type="text" placeholder="D:\videos\input_folder_b" />
+              </label>
+            </div>
+            <p class="panel-note">后端会直接读取这些本地文件夹。单文件夹模式按文件名排序处理；合并模式按排序结果一一配对。</p>
+          </article>
+
+          <article class="card panel">
+            <div class="section-header">
+              <div>
+                <p class="panel-kicker">Step 04</p>
+                <h2>输出目录</h2>
+              </div>
+            </div>
+            <label class="prompt-field">
+              <span>结果根目录</span>
+              <input id="clipOutputDir" class="input" type="text" placeholder="output\video_clip" />
+            </label>
+            <p class="panel-note">每次运行会在这里创建独立的时间戳目录，避免覆盖之前的任务结果。</p>
+          </article>
+        </aside>
+
+        <section class="mainpane">
+          <article class="card panel">
+            <div class="section-header">
+              <div>
+                <p class="panel-kicker">Step 05</p>
+                <h2>运行与进度</h2>
+              </div>
+              <div class="section-actions">
+                <button id="refreshClipJobBtn" class="btn btn-ghost">刷新</button>
+                <button id="openClipOutputBtn" class="btn btn-ghost">打开结果文件夹</button>
+                <button id="startClipBtn" class="btn btn-primary">开始剪辑</button>
+              </div>
+            </div>
+            <div class="progress-shell">
+              <div class="progress-track"><div id="clipProgressBar" class="progress-fill"></div></div>
+              <div class="progress-copy">
+                <strong id="clipProgressText">等待开始</strong>
+                <span id="clipProgressDetail">选择预设和本地路径后，开始执行批量剪辑。</span>
+              </div>
+            </div>
+          </article>
+
+          <div class="content-grid">
+            <article class="card panel">
+              <div class="section-header">
+                <div>
+                  <p class="panel-kicker">Live</p>
+                  <h2>日志</h2>
+                </div>
+              </div>
+              <pre id="clipLogBox" class="log-box">暂无日志</pre>
+            </article>
+
+            <article class="card panel">
+              <div class="section-header">
+                <div>
+                  <p class="panel-kicker">Output</p>
+                  <h2>剪辑结果</h2>
+                </div>
+              </div>
+              <div id="clipOutputList" class="output-list empty">运行后会显示生成的视频和预览帧。</div>
+            </article>
+          </div>
+        </section>
       </section>
     </section>
   </main>

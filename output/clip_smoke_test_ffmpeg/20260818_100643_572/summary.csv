@@ -1,0 +1,2 @@
+detail,output_video,preview_image,source,status
+保留前 50% 时长（ffmpeg）,D:\AIGC\web_demo\output\clip_smoke_test_ffmpeg\20260818_100643_572\output\trimmed\A001_first_half.mp4,D:\AIGC\web_demo\output\clip_smoke_test_ffmpeg\20260818_100643_572\output\last_frames\A001_half_last_frame.jpg,D:\AIGC\web_demo\batch_editing\input_videos\A001.mp4,done

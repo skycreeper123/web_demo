@@ -203,11 +203,21 @@ h2 {
   margin-top: 1.15rem;
 }
 
+.clip-feature-card {
+  min-height: 0;
+}
+
 .feature-copy p { color: var(--muted); }
 .feature-list {
   margin: 1rem 0 0;
   padding-left: 1rem;
   color: var(--text);
+}
+
+.clip-overview-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
 }
 
 .card-shell {
@@ -308,6 +318,12 @@ h2 {
 
 .prompt-module-panel[hidden] {
   display: none !important;
+}
+
+.segmented-row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
 }
 
 .stats-grid {
@@ -775,6 +791,10 @@ a:hover { text-decoration: underline; }
   .feature-actions {
     flex-direction: column;
     align-items: stretch;
+  }
+
+  .segmented-row {
+    grid-template-columns: 1fr;
   }
 
   .topbar,

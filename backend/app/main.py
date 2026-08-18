@@ -34,6 +34,10 @@ from web_demo.backend.app.core.config import (  # noqa: E402
 from web_demo.backend.app.services.prompt_generator import run_image_generation  # noqa: E402
 from web_demo.backend.app.services.image_edit_prompt_generator import run_image_edit_generation  # noqa: E402
 from web_demo.backend.app.services.video_matcher import build_video_matches  # noqa: E402
+from web_demo.backend.app.services.video_clip_service import (  # noqa: E402
+    list_clip_presets,
+    run_video_clip_job,
+)
 from web_demo.backend.app.services.video_prompt_generator import run_video_generation  # noqa: E402
 from web_demo.backend.app.utils.file_writer import ensure_dir  # noqa: E402
 
@@ -232,13 +236,14 @@ def _start_job_worker(
     def worker() -> None:
         try:
             result = runner(job)
+            final_total = int(result.get("total") or total)
             STORE.replace_outputs(job.id, result["items"])
             status = "completed" if result["items"] or not result["failures"] else "failed"
             STORE.update(
                 job.id,
                 status=status,
-                progress=total,
-                total=total,
+                progress=final_total,
+                total=final_total,
                 output_dir=result["output_dir"],
                 finished_at=time.time(),
             )
@@ -344,6 +349,24 @@ def start_video_job(payload: dict[str, Any]) -> JobState:
     return _start_job_worker(job=job, total=len(videos), runner=runner)
 
 
+def start_video_clip_job(payload: dict[str, Any]) -> JobState:
+    job = STORE.create(kind="video_clip", total=0)
+
+    def runner(job_state: JobState) -> dict[str, Any]:
+        return run_video_clip_job(
+            job_id=job_state.id,
+            payload=payload,
+            log=lambda message: STORE.append_log(job_state.id, message),
+            progress=lambda current, total: STORE.update(
+                job_state.id,
+                progress=current,
+                total=total,
+            ),
+        )
+
+    return _start_job_worker(job=job, total=0, runner=runner)
+
+
 class DemoHandler(BaseHTTPRequestHandler):
     server_version = "PromptToolDemo/0.2"
 
@@ -394,6 +417,9 @@ class DemoHandler(BaseHTTPRequestHandler):
                     "useMock": True,
                 },
             )
+
+        if path == "/api/clip/presets":
+            return json_response(self, HTTPStatus.OK, {"presets": list_clip_presets()})
 
         if path == "/api/prompt-config":
             return json_response(self, HTTPStatus.OK, _prompt_config_payload(IMAGE_PROMPT_KIND))
@@ -466,6 +492,13 @@ class DemoHandler(BaseHTTPRequestHandler):
 
     def do_POST(self) -> None:  # noqa: N802
         path = urlparse(self.path).path
+
+        if path == "/api/clip/run":
+            payload = read_body_json(self)
+            if not str(payload.get("preset") or "").strip():
+                return json_response(self, HTTPStatus.BAD_REQUEST, {"error": "Missing clip preset"})
+            job = start_video_clip_job(payload)
+            return json_response(self, HTTPStatus.ACCEPTED, {"jobId": job.id, "job": job_snapshot(job)})
 
         if path in {"/api/generate", f"/api/generate/{IMAGE_PROMPT_KIND}-prompt"}:
             payload = read_body_json(self)

@@ -1,0 +1,16 @@
+{
+  "job_id": "smoke_cv2",
+  "preset": "first_3s",
+  "output_dir": "D:\\AIGC\\web_demo\\output\\clip_smoke_test_cv2\\20260818_100643_549",
+  "source_dir": "D:\\AIGC\\web_demo\\batch_editing\\input_videos",
+  "items": [
+    {
+      "source": "D:\\AIGC\\web_demo\\batch_editing\\input_videos\\A001.mp4",
+      "output_video": "D:\\AIGC\\web_demo\\output\\clip_smoke_test_cv2\\20260818_100643_549\\output_first_3s\\trimmed\\A001_first_3s.mp4",
+      "preview_image": "D:\\AIGC\\web_demo\\output\\clip_smoke_test_cv2\\20260818_100643_549\\output_first_3s\\last_frames\\A001_first_3s_last_frame.jpg",
+      "status": "done",
+      "detail": "保留前 3 秒"
+    }
+  ],
+  "failures": []
+}

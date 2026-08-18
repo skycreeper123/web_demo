@@ -7,6 +7,10 @@ const VIEW_META = {
     title: "Prompt 生成工作台",
     subtitle: "统一入口管理多个 Prompt 子模块。",
   },
+  clipStudio: {
+    title: "视频剪辑工作台",
+    subtitle: "集成 batch_editing 的本地批量裁切和双文件夹合并能力。",
+  },
 };
 
 const PROMPT_MODULES = {
@@ -71,6 +75,15 @@ const state = {
     outputs: [],
     pollTimer: null,
   },
+  clip: {
+    presets: [],
+    mode: "single",
+    preset: "first_half_opencv",
+    jobId: "",
+    job: null,
+    outputs: [],
+    pollTimer: null,
+  },
 };
 
 const els = {
@@ -81,7 +94,9 @@ const els = {
   shutdownAppBtn: document.getElementById("shutdownAppBtn"),
   homeView: document.getElementById("homeView"),
   promptStudioView: document.getElementById("promptStudioView"),
+  clipStudioView: document.getElementById("clipStudioView"),
   goPromptStudioBtn: document.getElementById("goPromptStudioBtn"),
+  goClipStudioBtn: document.getElementById("goClipStudioBtn"),
   promptModuleOverview: document.getElementById("promptModuleOverview"),
   promptModuleTabs: document.getElementById("promptModuleTabs"),
   imageView: document.getElementById("imageView"),
@@ -90,6 +105,34 @@ const els = {
   promptModulePanels: Object.fromEntries(
     Object.entries(PROMPT_MODULES).map(([key, moduleMeta]) => [key, document.getElementById(moduleMeta.panelId)])
   ),
+
+  clipPresetBadge: document.getElementById("clipPresetBadge"),
+  clipPresetMeta: document.getElementById("clipPresetMeta"),
+  clipInputCount: document.getElementById("clipInputCount"),
+  clipInputMeta: document.getElementById("clipInputMeta"),
+  clipStatusBadge: document.getElementById("clipStatusBadge"),
+  clipJobMeta: document.getElementById("clipJobMeta"),
+  clipResultCount: document.getElementById("clipResultCount"),
+  clipOutputRootValue: document.getElementById("clipOutputRootValue"),
+  clipSingleModeBtn: document.getElementById("clipSingleModeBtn"),
+  clipMergeModeBtn: document.getElementById("clipMergeModeBtn"),
+  clipModeDescription: document.getElementById("clipModeDescription"),
+  clipPresetSelect: document.getElementById("clipPresetSelect"),
+  clipPresetDescription: document.getElementById("clipPresetDescription"),
+  clipSingleInputField: document.getElementById("clipSingleInputField"),
+  clipMergeInputFields: document.getElementById("clipMergeInputFields"),
+  clipInputDir: document.getElementById("clipInputDir"),
+  clipInputDirA: document.getElementById("clipInputDirA"),
+  clipInputDirB: document.getElementById("clipInputDirB"),
+  clipOutputDir: document.getElementById("clipOutputDir"),
+  startClipBtn: document.getElementById("startClipBtn"),
+  refreshClipJobBtn: document.getElementById("refreshClipJobBtn"),
+  openClipOutputBtn: document.getElementById("openClipOutputBtn"),
+  clipProgressBar: document.getElementById("clipProgressBar"),
+  clipProgressText: document.getElementById("clipProgressText"),
+  clipProgressDetail: document.getElementById("clipProgressDetail"),
+  clipLogBox: document.getElementById("clipLogBox"),
+  clipOutputList: document.getElementById("clipOutputList"),
 
   imageInput: document.getElementById("imageInput"),
   imageDropzone: document.getElementById("imageDropzone"),
@@ -532,6 +575,12 @@ function updateViewHeader() {
     return;
   }
 
+  if (state.currentView === "clipStudio") {
+    els.viewTitle.textContent = VIEW_META.clipStudio.title;
+    els.viewSubtitle.textContent = VIEW_META.clipStudio.subtitle;
+    return;
+  }
+
   els.viewTitle.textContent = VIEW_META.home.title;
   els.viewSubtitle.textContent = VIEW_META.home.subtitle;
 }
@@ -550,6 +599,7 @@ function setView(view, moduleKey = state.activePromptModule) {
   state.currentView = view;
   els.homeView.hidden = view !== "home";
   els.promptStudioView.hidden = view !== "promptStudio";
+  els.clipStudioView.hidden = view !== "clipStudio";
   els.navBackBtn.disabled = view === "home";
 
   if (view === "promptStudio") {
@@ -803,6 +853,247 @@ function setImageEditLog(lines) {
 function setVideoLog(lines) {
   const normalizedLines = normalizeLogLines(lines);
   els.videoLogBox.textContent = normalizedLines.length ? normalizedLines.join("\n") : "暂无日志";
+}
+
+function getClipPreset(key = state.clip.preset) {
+  return state.clip.presets.find((preset) => preset.key === key) || null;
+}
+
+function renderClipPresetDescription() {
+  const preset = getClipPreset();
+  els.clipPresetDescription.textContent = preset
+    ? `${preset.group} · ${preset.description}`
+    : "暂无可用剪辑预设。";
+}
+
+function updateClipSummary() {
+  const preset = getClipPreset();
+  const isMergeMode = state.clip.mode === "merge";
+  els.clipPresetBadge.textContent = preset?.label || "未选择";
+  els.clipPresetMeta.textContent = preset ? `${preset.group} · ${preset.description}` : "等待读取剪辑预设";
+  els.clipInputCount.textContent = isMergeMode ? "2" : "1";
+  els.clipInputMeta.textContent = isMergeMode
+    ? "两个本地视频文件夹，按排序配对"
+    : "一个本地视频文件夹，批量裁切";
+  els.clipOutputRootValue.textContent = normalizeDisplayPath(els.clipOutputDir.value.trim()) || "output/video_clip";
+}
+
+function renderClipPresetOptions() {
+  const availablePresets = state.clip.presets.filter((preset) => (
+    state.clip.mode === "merge"
+      ? preset.mode === "merge_pairwise"
+      : preset.mode !== "merge_pairwise"
+  ));
+
+  if (!availablePresets.length) {
+    els.clipPresetSelect.innerHTML = "";
+    state.clip.preset = "";
+    renderClipPresetDescription();
+    updateClipSummary();
+    return;
+  }
+
+  if (!availablePresets.some((preset) => preset.key === state.clip.preset)) {
+    state.clip.preset = availablePresets[0].key;
+  }
+
+  const groups = new Map();
+  availablePresets.forEach((preset) => {
+    const group = groups.get(preset.group) || [];
+    group.push(preset);
+    groups.set(preset.group, group);
+  });
+
+  els.clipPresetSelect.innerHTML = [...groups.entries()].map(([group, presets]) => `
+    <optgroup label="${escapeHtml(group)}">
+      ${presets.map((preset) => `
+        <option value="${escapeHtml(preset.key)}">${escapeHtml(preset.label)}</option>
+      `).join("")}
+    </optgroup>
+  `).join("");
+  els.clipPresetSelect.value = state.clip.preset;
+  renderClipPresetDescription();
+  updateClipSummary();
+}
+
+function setClipMode(mode) {
+  if (!["single", "merge"].includes(mode)) return;
+  state.clip.mode = mode;
+  const isSingleMode = mode === "single";
+
+  els.clipSingleModeBtn.classList.toggle("btn-primary", isSingleMode);
+  els.clipSingleModeBtn.classList.toggle("btn-ghost", !isSingleMode);
+  els.clipMergeModeBtn.classList.toggle("btn-primary", !isSingleMode);
+  els.clipMergeModeBtn.classList.toggle("btn-ghost", isSingleMode);
+  els.clipSingleModeBtn.setAttribute("aria-pressed", isSingleMode ? "true" : "false");
+  els.clipMergeModeBtn.setAttribute("aria-pressed", isSingleMode ? "false" : "true");
+  els.clipSingleInputField.hidden = !isSingleMode;
+  els.clipMergeInputFields.hidden = isSingleMode;
+  els.clipModeDescription.textContent = isSingleMode
+    ? "从一个视频文件夹中按预设批量裁切，并生成预览帧。"
+    : "从两个视频文件夹中按文件名排序后一一配对，将每对视频顺序拼接。";
+
+  renderClipPresetOptions();
+}
+
+async function loadClipPresets() {
+  const res = await fetch("/api/clip/presets");
+  const data = await res.json();
+  if (!res.ok) {
+    throw new Error(data.error || "无法读取剪辑预设");
+  }
+
+  state.clip.presets = data.presets || [];
+  if (!getClipPreset(state.clip.preset)) {
+    state.clip.preset = state.clip.presets.find((preset) => preset.key === "first_half_opencv")?.key
+      || state.clip.presets[0]?.key
+      || "";
+  }
+  setClipMode(state.clip.mode);
+}
+
+function setClipLog(lines) {
+  const normalizedLines = normalizeLogLines(lines);
+  els.clipLogBox.textContent = normalizedLines.length ? normalizedLines.join("\n") : "暂无日志";
+}
+
+function clipPathName(pathText) {
+  return String(pathText || "").replaceAll("\\", "/").split("/").filter(Boolean).at(-1) || "-";
+}
+
+function renderClipOutputs(items) {
+  state.clip.outputs = items || [];
+  const completedCount = state.clip.outputs.filter((item) => item.status === "done").length;
+  els.clipResultCount.textContent = String(completedCount);
+
+  if (!state.clip.outputs.length) {
+    els.clipOutputList.classList.add("empty");
+    els.clipOutputList.textContent = "运行后会显示生成的视频和预览帧。";
+    return;
+  }
+
+  els.clipOutputList.classList.remove("empty");
+  els.clipOutputList.innerHTML = state.clip.outputs.map((item) => {
+    const source = item.source
+      ? clipPathName(item.source)
+      : `${clipPathName(item.source_a)} + ${clipPathName(item.source_b)}`;
+    const outputVideo = item.output_video ? `视频：${clipPathName(item.output_video)}` : "未生成输出视频";
+    const preview = item.preview_image ? ` · 预览：${clipPathName(item.preview_image)}` : "";
+    const isDone = item.status === "done";
+    return `
+      <div class="output-row">
+        <div>
+          <strong>${escapeHtml(source)}</strong>
+          <small>${escapeHtml(item.detail || outputVideo)}</small>
+          <small>${escapeHtml(`${outputVideo}${preview}`)}</small>
+        </div>
+        <span class="status-pill ${isDone ? "status-matched" : "status-missing"}">${isDone ? "已完成" : "失败"}</span>
+      </div>
+    `;
+  }).join("");
+}
+
+function renderClipJob(job) {
+  state.clip.job = job;
+  const percent = job.total ? Math.round((job.progress / job.total) * 100) : 0;
+  els.clipProgressBar.style.width = `${percent}%`;
+  els.clipStatusBadge.textContent = toReadableJobStatus(job.status);
+  els.clipJobMeta.textContent = job.id
+    ? job.total
+      ? `Job ${job.id} · ${job.progress}/${job.total}`
+      : `Job ${job.id} · 正在扫描输入目录`
+    : "未启动任务";
+  els.clipProgressText.textContent = toReadableJobStatus(job.status);
+  els.clipProgressDetail.textContent = job.status === "completed"
+    ? "视频批处理已完成，可打开结果文件夹查看全部产物。"
+    : job.status === "failed"
+      ? `任务失败：${job.error || "unknown"}`
+      : job.status === "running"
+        ? "正在读取本地视频并执行批量剪辑。"
+        : "等待开始。";
+  els.clipOutputRootValue.textContent = normalizeDisplayPath(job.output_dir)
+    || normalizeDisplayPath(els.clipOutputDir.value.trim())
+    || "output/video_clip";
+
+  if (Array.isArray(job.outputs)) {
+    renderClipOutputs(job.outputs);
+  }
+}
+
+async function startClipJob() {
+  try {
+    const preset = getClipPreset();
+    if (!preset) {
+      throw new Error("请先选择剪辑预设。");
+    }
+
+    const outputDir = els.clipOutputDir.value.trim() || "output/video_clip";
+    if (state.clip.mode === "single" && !els.clipInputDir.value.trim()) {
+      throw new Error("请填写视频输入文件夹路径。");
+    }
+    if (state.clip.mode === "merge" && (!els.clipInputDirA.value.trim() || !els.clipInputDirB.value.trim())) {
+      throw new Error("请同时填写文件夹 A 和文件夹 B 的路径。");
+    }
+
+    els.startClipBtn.disabled = true;
+    els.clipProgressText.textContent = "准备中";
+    els.clipProgressDetail.textContent = "正在提交本地批处理任务。";
+
+    const res = await fetch("/api/clip/run", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        preset: preset.key,
+        inputDir: els.clipInputDir.value.trim(),
+        inputDirA: els.clipInputDirA.value.trim(),
+        inputDirB: els.clipInputDirB.value.trim(),
+        outputDir,
+      }),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      throw new Error(data.error || "启动剪辑任务失败");
+    }
+
+    state.clip.jobId = data.jobId;
+    renderClipJob(data.job);
+    setClipLog(data.job?.logs || []);
+    pollClipJob();
+  } catch (error) {
+    els.startClipBtn.disabled = false;
+    alert(error.message);
+  }
+}
+
+async function pollClipJob() {
+  if (state.clip.pollTimer) clearInterval(state.clip.pollTimer);
+  const tick = async () => {
+    if (!state.clip.jobId) return;
+    const res = await fetch(`/api/jobs/${state.clip.jobId}`);
+    const job = await res.json();
+    renderClipJob(job);
+    setClipLog(job.logs || []);
+
+    if (job.status === "completed" || job.status === "failed") {
+      els.startClipBtn.disabled = false;
+      clearInterval(state.clip.pollTimer);
+      state.clip.pollTimer = null;
+    }
+  };
+  await tick();
+  state.clip.pollTimer = setInterval(tick, 1000);
+}
+
+async function openClipOutput() {
+  if (!state.clip.jobId) {
+    alert("请先运行一次视频剪辑任务");
+    return;
+  }
+  const res = await fetch(`/api/jobs/${state.clip.jobId}/open-output`, { method: "POST" });
+  const data = await res.json();
+  if (!res.ok) {
+    alert(data.error || "无法打开输出目录");
+  }
 }
 
 function getImagePromptPayload() {
@@ -1602,6 +1893,7 @@ function bindEvents() {
   els.navBackBtn.addEventListener("click", () => setView("home"));
   els.shutdownAppBtn.addEventListener("click", shutdownApp);
   els.goPromptStudioBtn.addEventListener("click", () => setView("promptStudio", state.activePromptModule));
+  els.goClipStudioBtn.addEventListener("click", () => setView("clipStudio"));
 
   document.addEventListener("click", (event) => {
     const overviewButton = event.target.closest("[data-open-prompt-module]");
@@ -1613,6 +1905,12 @@ function bindEvents() {
     const moduleTabButton = event.target.closest("[data-prompt-module]");
     if (moduleTabButton) {
       setActivePromptModule(moduleTabButton.dataset.promptModule);
+      return;
+    }
+
+    const clipModeButton = event.target.closest("[data-clip-mode]");
+    if (clipModeButton) {
+      setClipMode(clipModeButton.dataset.clipMode);
       return;
     }
 
@@ -1696,6 +1994,19 @@ function bindEvents() {
   els.videoApiKey.addEventListener("input", () => setModuleModeBadge(els.videoApiKey, els.videoUseMock, els.videoModeBadge));
   els.videoUseMock.addEventListener("change", () => setModuleModeBadge(els.videoApiKey, els.videoUseMock, els.videoModeBadge));
 
+  els.clipPresetSelect.addEventListener("change", () => {
+    state.clip.preset = els.clipPresetSelect.value;
+    renderClipPresetDescription();
+    updateClipSummary();
+  });
+  els.clipInputDir.addEventListener("input", updateClipSummary);
+  els.clipInputDirA.addEventListener("input", updateClipSummary);
+  els.clipInputDirB.addEventListener("input", updateClipSummary);
+  els.clipOutputDir.addEventListener("input", updateClipSummary);
+  els.startClipBtn.addEventListener("click", startClipJob);
+  els.refreshClipJobBtn.addEventListener("click", () => state.clip.jobId && pollClipJob());
+  els.openClipOutputBtn.addEventListener("click", openClipOutput);
+
   els.reloadImageApiConfigBtn.addEventListener("click", loadImageApiConfig);
   els.saveImageApiConfigBtn.addEventListener("click", saveImageApiConfig);
   els.reloadImagePromptConfigBtn.addEventListener("click", loadImagePromptConfig);
@@ -1753,10 +2064,16 @@ async function init() {
   await registerBrowserSession();
   startBrowserHeartbeat();
   setView("home");
+  await loadClipPresets();
+  setClipMode(state.clip.mode);
+  updateClipSummary();
+  renderClipOutputs([]);
+  renderClipJob({ id: "", status: "idle", progress: 0, total: 0, error: "", output_dir: "", outputs: [] });
   renderNamedStackList("image");
   renderNamedStackList("imageEdit");
   renderNamedStackList("video");
   renderNamedStackList("reference");
+  setClipLog([]);
   renderOutputList([], els.imageOutputList, els.imageResultCount, "运行后会显示生成的文件");
   renderOutputList([], els.imageEditOutputList, els.imageEditResultCount, "运行后会显示生成的文件");
   renderOutputList([], els.videoOutputList, els.videoResultCount, "运行后会显示生成的文件");
