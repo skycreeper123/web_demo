@@ -15,13 +15,13 @@
         <div>
           <p class="eyebrow">Prompt Tool Studio</p>
           <h1 id="viewTitle">首页</h1>
-          <p id="viewSubtitle" class="subtle">进入统一的 Prompt 生成工作台，在一个大模块里切换 3 个子模块，并继续扩展更多类型。</p>
+          <p id="viewSubtitle" class="subtle">统一入口，覆盖 Prompt 与视频剪辑。</p>
         </div>
       </div>
       <div class="topbar-actions">
         <button id="navHomeBtn" class="btn btn-ghost">首页</button>
-        <button id="navBackBtn" class="btn btn-ghost">返回上一级</button>
-        <button id="shutdownAppBtn" class="btn btn-ghost">退出并关闭</button>
+        <button id="navBackBtn" class="btn btn-ghost">返回</button>
+        <button id="shutdownAppBtn" class="btn btn-ghost">退出</button>
       </div>
     </header>
 
@@ -32,14 +32,14 @@
             <div class="feature-copy">
               <p class="panel-kicker">Main Module</p>
               <h2>Prompt 生成工作台</h2>
-              <p>把原本分散的 3 个 Prompt 生成功能统一收进一个大模块里，后续新增别的 Prompt 类型时，也能沿着同一套入口、切换和配置结构继续扩展。</p>
+              <p>统一管理 3 个 Prompt 模块，后续可继续扩展。</p>
               <ul class="feature-list">
-                <li>统一入口管理图片、图生图和视频编辑 Prompt</li>
-                <li>子模块独立保留各自的输入区、配置区、运行区和输出区</li>
-                <li>后续新增第 4、第 5 种模块时，只需接入同一套注册和切换结构</li>
+                <li>图片 / 图生图 / 视频 Prompt</li>
+                <li>输入、配置、运行、输出独立</li>
+                <li>新模块可直接接入</li>
               </ul>
               <div class="feature-actions">
-                <button id="goPromptStudioBtn" class="btn btn-primary">进入 Prompt 工作台</button>
+                <button id="goPromptStudioBtn" class="btn btn-primary">进入</button>
               </div>
             </div>
 
@@ -47,7 +47,7 @@
               <div class="section-header compact">
                 <div>
                   <p class="panel-kicker">Included</p>
-                  <h2>当前已集成子模块</h2>
+                  <h2>已集成</h2>
                 </div>
                 <span class="chip chip-soft">统一切换</span>
               </div>
@@ -61,14 +61,14 @@
             <div class="feature-copy">
               <p class="panel-kicker">Batch Editing</p>
               <h2>视频剪辑工作台</h2>
-              <p>把 `batch_editing` 目录里的批量裁切和双文件夹合并能力统一接入 app，直接填写本地路径即可运行，不需要先把大视频上传到浏览器。</p>
+              <p>集成 `batch_editing`，本地路径直连处理。</p>
               <ul class="feature-list">
-                <li>支持保留前 / 后几秒和前 / 后百分比</li>
-                <li>支持 ffmpeg 快速前半段裁切和 OpenCV 帧级裁切</li>
-                <li>支持两个视频文件夹按排序后一一合并</li>
+                <li>按秒 / 按比例</li>
+                <li>ffmpeg / OpenCV</li>
+                <li>双文件夹合并</li>
               </ul>
               <div class="feature-actions">
-                <button id="goClipStudioBtn" class="btn btn-primary">进入视频剪辑工作台</button>
+                <button id="goClipStudioBtn" class="btn btn-primary">进入</button>
               </div>
             </div>
 
@@ -76,7 +76,7 @@
               <div class="section-header compact">
                 <div>
                   <p class="panel-kicker">Included</p>
-                  <h2>已集成功能</h2>
+                  <h2>功能</h2>
                 </div>
                 <span class="chip chip-soft">本地路径</span>
               </div>
@@ -87,7 +87,7 @@
                 <span class="chip">后半段裁切</span>
                 <span class="chip">双文件夹合并</span>
               </div>
-              <p class="panel-note">每次任务会创建独立输出目录，并保留裁切视频、预览帧和汇总清单。</p>
+              <p class="panel-note">结果按任务分目录保存。</p>
             </div>
           </div>
         </article>
@@ -100,7 +100,7 @@
           <div>
             <p class="panel-kicker">Workspace</p>
             <h2>Prompt 子模块</h2>
-            <p class="panel-note">在同一个工作台里切换不同 Prompt 类型，后面新增模块时也能复用这一层导航。</p>
+            <p class="panel-note">统一切换各 Prompt 模块。</p>
           </div>
           <span class="chip">统一大模块</span>
         </div>
@@ -112,22 +112,22 @@
         <article class="stat card">
           <span>图片</span>
           <strong id="imageSelectedCount">0</strong>
-          <small>已选择</small>
+          <small>已选</small>
         </article>
         <article class="stat card">
           <span>状态</span>
           <strong id="imageStatusBadge">待开始</strong>
-          <small id="imageJobMeta">未启动任务</small>
+          <small id="imageJobMeta">未运行</small>
         </article>
         <article class="stat card">
           <span>结果</span>
           <strong id="imageResultCount">0</strong>
-          <small>文件输出</small>
+          <small>文件</small>
         </article>
         <article class="stat card">
           <span>输出目录</span>
           <strong id="imageOutputRootValue">未设置</strong>
-          <small>图片模块</small>
+          <small>图片</small>
         </article>
       </section>
 
@@ -143,15 +143,15 @@
             </div>
             <label class="dropzone" id="imageDropzone">
               <input id="imageInput" type="file" accept="image/*" multiple webkitdirectory />
-              <strong>点击选择，或把图片拖到这里</strong>
-              <span>支持 JPG / PNG / WEBP，可直接选文件夹批量导入。真实 API 模式下请优先填写下方官方 URL。</span>
+              <strong>选择或拖入图片</strong>
+              <span>JPG / PNG / WEBP，支持文件夹。</span>
             </label>
-            <div id="imageFileList" class="stack-list empty">还没有选择图片</div>
+            <div id="imageFileList" class="stack-list empty">未选择图片</div>
             <label class="prompt-field">
-              <span>官方 API 图片 URL（每行一个，可写 `文件名 | URL`）</span>
+              <span>图片 URL（每行一条，可写 `文件名 | URL`）</span>
               <textarea id="imageUrlInput" class="textarea" spellcheck="false" placeholder="demo.png | https://example.com/demo.png&#10;https://example.com/another-image.jpg"></textarea>
             </label>
-            <p class="panel-note">最保险模式下，真实 API 调用只发送可访问的 http(s) 图片 URL。本地文件仅用于 mock。</p>
+            <p class="panel-note">真实 API 建议使用可访问的 URL。</p>
           </article>
 
           <article class="card panel">
@@ -159,12 +159,12 @@
               <div>
                 <p class="panel-kicker">Step 02</p>
                 <h2>API 配置</h2>
-                <p class="panel-note">修改后可保存到 API 配置文件，下次启动可直接读取。</p>
+                <p class="panel-note">保存后下次自动读取。</p>
               </div>
               <div class="section-actions">
                 <span class="chip chip-soft" id="imageModeBadge">Mock</span>
-                <button id="reloadImageApiConfigBtn" class="btn btn-ghost">重新读取</button>
-                <button id="saveImageApiConfigBtn" class="btn btn-primary">保存配置</button>
+                <button id="reloadImageApiConfigBtn" class="btn btn-ghost">读取</button>
+                <button id="saveImageApiConfigBtn" class="btn btn-primary">保存</button>
               </div>
             </div>
             <div class="config-path">
@@ -190,10 +190,10 @@
               </label>
             </div>
             <div class="toggle-row">
-              <label class="toggle"><input id="imageUseMock" type="checkbox" checked /> 没有 Key 时启用 mock</label>
+              <label class="toggle"><input id="imageUseMock" type="checkbox" checked /> 无 Key 时启用 mock</label>
               <label class="toggle"><input id="imageOverwrite" type="checkbox" /> 覆盖已有结果</label>
             </div>
-            <p class="panel-note">关闭 `mock` 并填写真实 API Key 后，会严格要求使用官方可访问的图片 URL。</p>
+            <p class="panel-note">关闭 `mock` 后请使用可访问的 URL。</p>
           </article>
         </aside>
 
@@ -202,12 +202,12 @@
             <div class="section-header">
               <div>
                 <p class="panel-kicker">Step 03</p>
-                <h2>图片 Prompt 配置文件</h2>
-                <p class="panel-note">修改后直接保存到本地文件，图片模块后续默认读取这份配置。</p>
+                <h2>图片 Prompt 配置</h2>
+                <p class="panel-note">直接保存到本地。</p>
               </div>
               <div class="section-actions">
-                <button id="reloadImagePromptConfigBtn" class="btn btn-ghost">重新读取</button>
-                <button id="saveImagePromptConfigBtn" class="btn btn-primary">保存配置</button>
+                <button id="reloadImagePromptConfigBtn" class="btn btn-ghost">读取</button>
+                <button id="saveImagePromptConfigBtn" class="btn btn-primary">保存</button>
               </div>
             </div>
             <div class="config-path">
@@ -233,15 +233,15 @@
                 <h2>运行与进度</h2>
               </div>
               <div class="section-actions">
-                <button id="reloadImageFilesBtn" class="btn btn-ghost">重载文件</button>
-                <button id="startImageBtn" class="btn btn-primary">开始生成</button>
+                <button id="reloadImageFilesBtn" class="btn btn-ghost">刷新文件</button>
+                <button id="startImageBtn" class="btn btn-primary">开始</button>
               </div>
             </div>
             <div class="progress-shell">
               <div class="progress-track"><div id="imageProgressBar" class="progress-fill"></div></div>
               <div class="progress-copy">
-                <strong id="imageProgressText">等待开始</strong>
-                <span id="imageProgressDetail">上传、生成、保存结果都会显示在这里。</span>
+                <strong id="imageProgressText">等待</strong>
+                <span id="imageProgressDetail">这里显示进度。</span>
               </div>
             </div>
           </article>
@@ -264,9 +264,9 @@
                   <p class="panel-kicker">Output</p>
                   <h2>结果文件</h2>
                 </div>
-                <button id="openImageOutputBtn" class="btn btn-ghost">打开结果文件夹</button>
+                <button id="openImageOutputBtn" class="btn btn-ghost">打开目录</button>
               </div>
-              <div id="imageOutputList" class="output-list empty">运行后会显示生成的文件</div>
+              <div id="imageOutputList" class="output-list empty">结果将在这里显示</div>
             </article>
           </div>
         </section>
@@ -278,22 +278,22 @@
         <article class="stat card">
           <span>图片</span>
           <strong id="imageEditSelectedCount">0</strong>
-          <small>已选择</small>
+          <small>已选</small>
         </article>
         <article class="stat card">
           <span>状态</span>
           <strong id="imageEditStatusBadge">待开始</strong>
-          <small id="imageEditJobMeta">未启动任务</small>
+          <small id="imageEditJobMeta">未运行</small>
         </article>
         <article class="stat card">
           <span>结果</span>
           <strong id="imageEditResultCount">0</strong>
-          <small>文件输出</small>
+          <small>文件</small>
         </article>
         <article class="stat card">
           <span>输出目录</span>
           <strong id="imageEditOutputRootValue">未设置</strong>
-          <small>图生图模块</small>
+          <small>图生图</small>
         </article>
       </section>
 
@@ -309,15 +309,15 @@
             </div>
             <label class="dropzone" id="imageEditDropzone">
               <input id="imageEditInput" type="file" accept="image/*" multiple webkitdirectory />
-              <strong>点击选择，或把图片拖到这里</strong>
-              <span>支持 JPG / PNG / WEBP，可直接选文件夹批量导入。真实 API 模式下请优先填写下方官方 URL。</span>
+              <strong>选择或拖入图片</strong>
+              <span>JPG / PNG / WEBP，支持文件夹。</span>
             </label>
-            <div id="imageEditFileList" class="stack-list empty">还没有选择图片</div>
+            <div id="imageEditFileList" class="stack-list empty">未选择图片</div>
             <label class="prompt-field">
-              <span>官方 API 图片 URL（每行一个，可写 `文件名 | URL`）</span>
+              <span>图片 URL（每行一条，可写 `文件名 | URL`）</span>
               <textarea id="imageEditUrlInput" class="textarea" spellcheck="false" placeholder="demo.png | https://example.com/demo.png&#10;https://example.com/another-image.jpg"></textarea>
             </label>
-            <p class="panel-note">图生图模块会基于输入图片自动生成“保真编辑型” Prompt。真实 API 模式下建议使用可访问的 http(s) 图片 URL。</p>
+            <p class="panel-note">真实 API 建议使用可访问的 URL。</p>
           </article>
 
           <article class="card panel">
@@ -325,12 +325,12 @@
               <div>
                 <p class="panel-kicker">Step 02</p>
                 <h2>API 配置</h2>
-                <p class="panel-note">修改后可保存到 API 配置文件，下次启动可直接读取。</p>
+                <p class="panel-note">保存后下次自动读取。</p>
               </div>
               <div class="section-actions">
                 <span class="chip chip-soft" id="imageEditModeBadge">Mock</span>
-                <button id="reloadImageEditApiConfigBtn" class="btn btn-ghost">重新读取</button>
-                <button id="saveImageEditApiConfigBtn" class="btn btn-primary">保存配置</button>
+                <button id="reloadImageEditApiConfigBtn" class="btn btn-ghost">读取</button>
+                <button id="saveImageEditApiConfigBtn" class="btn btn-primary">保存</button>
               </div>
             </div>
             <div class="config-path">
@@ -356,10 +356,10 @@
               </label>
             </div>
             <div class="toggle-row">
-              <label class="toggle"><input id="imageEditUseMock" type="checkbox" checked /> 没有 Key 时启用 mock</label>
+              <label class="toggle"><input id="imageEditUseMock" type="checkbox" checked /> 无 Key 时启用 mock</label>
               <label class="toggle"><input id="imageEditOverwrite" type="checkbox" /> 覆盖已有结果</label>
             </div>
-            <p class="panel-note">关闭 `mock` 并填写真实 API Key 后，会严格要求使用官方可访问的图片 URL。</p>
+            <p class="panel-note">关闭 `mock` 后请使用可访问的 URL。</p>
           </article>
         </aside>
 
@@ -368,12 +368,12 @@
             <div class="section-header">
               <div>
                 <p class="panel-kicker">Step 03</p>
-                <h2>图生图 Prompt 配置文件</h2>
-                <p class="panel-note">修改后直接保存到本地文件，图生图模块后续默认读取这份配置。</p>
+                <h2>图生图 Prompt 配置</h2>
+                <p class="panel-note">直接保存到本地。</p>
               </div>
               <div class="section-actions">
-                <button id="reloadImageEditPromptConfigBtn" class="btn btn-ghost">重新读取</button>
-                <button id="saveImageEditPromptConfigBtn" class="btn btn-primary">保存配置</button>
+                <button id="reloadImageEditPromptConfigBtn" class="btn btn-ghost">读取</button>
+                <button id="saveImageEditPromptConfigBtn" class="btn btn-primary">保存</button>
               </div>
             </div>
             <div class="config-path">
@@ -399,15 +399,15 @@
                 <h2>运行与进度</h2>
               </div>
               <div class="section-actions">
-                <button id="reloadImageEditFilesBtn" class="btn btn-ghost">重载文件</button>
-                <button id="startImageEditBtn" class="btn btn-primary">开始生成</button>
+                <button id="reloadImageEditFilesBtn" class="btn btn-ghost">刷新文件</button>
+                <button id="startImageEditBtn" class="btn btn-primary">开始</button>
               </div>
             </div>
             <div class="progress-shell">
               <div class="progress-track"><div id="imageEditProgressBar" class="progress-fill"></div></div>
               <div class="progress-copy">
-                <strong id="imageEditProgressText">等待开始</strong>
-                <span id="imageEditProgressDetail">上传、生成、保存结果都会显示在这里。</span>
+                <strong id="imageEditProgressText">等待</strong>
+                <span id="imageEditProgressDetail">这里显示进度。</span>
               </div>
             </div>
           </article>
@@ -430,9 +430,9 @@
                   <p class="panel-kicker">Output</p>
                   <h2>结果文件</h2>
                 </div>
-                <button id="openImageEditOutputBtn" class="btn btn-ghost">打开结果文件夹</button>
+                <button id="openImageEditOutputBtn" class="btn btn-ghost">打开目录</button>
               </div>
-              <div id="imageEditOutputList" class="output-list empty">运行后会显示生成的文件</div>
+              <div id="imageEditOutputList" class="output-list empty">结果将在这里显示</div>
             </article>
           </div>
         </section>
@@ -444,22 +444,22 @@
         <article class="stat card">
           <span>视频</span>
           <strong id="videoSelectedCount">0</strong>
-          <small>已选择</small>
+          <small>已选</small>
         </article>
         <article class="stat card">
           <span>参考图</span>
           <strong id="referenceSelectedCount">0</strong>
-          <small>已选择</small>
+          <small>已选</small>
         </article>
         <article class="stat card">
           <span>匹配</span>
           <strong id="videoMatchBadge">未扫描</strong>
-          <small id="videoMatchMeta">等待扫描</small>
+          <small id="videoMatchMeta">待扫描</small>
         </article>
         <article class="stat card">
           <span>结果</span>
           <strong id="videoResultCount">0</strong>
-          <small>文件输出</small>
+          <small>文件</small>
         </article>
       </section>
 
@@ -469,18 +469,18 @@
             <div class="section-header">
               <div>
                 <p class="panel-kicker">Step 01</p>
-                <h2>选择视频目录</h2>
+                <h2>视频目录</h2>
               </div>
               <span class="chip">同名匹配</span>
             </div>
             <label class="dropzone" id="videoDropzone">
               <input id="videoInput" type="file" accept="video/*,.mp4,.mov,.avi,.mkv,.webm" multiple webkitdirectory />
-              <strong>选择输入视频目录</strong>
-              <span>支持 MP4 / MOV / AVI / MKV / WEBM。真实 API 模式下请优先填写下方官方 URL。</span>
+              <strong>选择视频目录</strong>
+              <span>MP4 / MOV / AVI / MKV / WEBM。</span>
             </label>
-            <div id="videoFileList" class="stack-list empty">还没有选择视频</div>
+            <div id="videoFileList" class="stack-list empty">未选择视频</div>
             <label class="prompt-field">
-              <span>官方 API 视频 URL（每行一个，可写 `文件名 | URL`）</span>
+              <span>视频 URL（每行一条，可写 `文件名 | URL`）</span>
               <textarea id="videoUrlInput" class="textarea" spellcheck="false" placeholder="a001.mp4 | https://example.com/a001.mp4&#10;https://example.com/a002.mov"></textarea>
             </label>
           </article>
@@ -489,34 +489,34 @@
             <div class="section-header">
               <div>
                 <p class="panel-kicker">Step 02</p>
-                <h2>选择参考图目录</h2>
+                <h2>参考图目录</h2>
               </div>
               <span class="chip chip-soft">a001 / a001_1 / a001_2</span>
             </div>
             <label class="dropzone" id="referenceDropzone">
               <input id="referenceInput" type="file" accept="image/*" multiple webkitdirectory />
               <strong>选择参考图目录</strong>
-              <span>支持 JPG / PNG / WEBP，按同名规则自动配对。真实 API 模式下请优先填写下方官方 URL。</span>
+              <span>JPG / PNG / WEBP，按同名规则配对。</span>
             </label>
-            <div id="referenceFileList" class="stack-list empty">还没有选择参考图</div>
+            <div id="referenceFileList" class="stack-list empty">未选择参考图</div>
             <label class="prompt-field">
-              <span>官方 API 参考图 URL（每行一个，可写 `文件名 | URL`）</span>
+              <span>参考图 URL（每行一条，可写 `文件名 | URL`）</span>
               <textarea id="referenceUrlInput" class="textarea" spellcheck="false" placeholder="a001.png | https://example.com/a001.png&#10;a001_1.png | https://example.com/a001_1.png"></textarea>
             </label>
-            <p class="panel-note">真实 API 模式下，视频与参考图都建议使用公开可访问的 http(s) URL，严格对齐官方示例。</p>
+            <p class="panel-note">真实 API 建议使用可访问的 URL。</p>
           </article>
 
           <article class="card panel">
             <div class="section-header">
               <div>
                 <p class="panel-kicker">Step 03</p>
-                <h2>扫描匹配规则</h2>
+                <h2>匹配规则</h2>
               </div>
-              <button id="scanVideoMatchBtn" class="btn btn-primary">扫描匹配</button>
+              <button id="scanVideoMatchBtn" class="btn btn-primary">扫描</button>
             </div>
             <div class="rule-box">
-              <p>默认规则：视频 `a001.mp4` 会依次匹配参考图 `a001.*`、`a001_1.*`、`a001_2.*`。</p>
-              <p>允许一到两张参考图；如果同一槽位出现多个文件，会标记为命名冲突。</p>
+              <p>`a001.mp4` -> `a001.*` / `a001_1.*` / `a001_2.*`</p>
+              <p>同槽位多文件会标记冲突。</p>
             </div>
           </article>
 
@@ -525,12 +525,12 @@
               <div>
                 <p class="panel-kicker">Step 04</p>
                 <h2>API 配置</h2>
-                <p class="panel-note">修改后可保存到 API 配置文件，下次启动可直接读取。</p>
+                <p class="panel-note">保存后下次自动读取。</p>
               </div>
               <div class="section-actions">
                 <span class="chip chip-soft" id="videoModeBadge">Mock</span>
-                <button id="reloadVideoApiConfigBtn" class="btn btn-ghost">重新读取</button>
-                <button id="saveVideoApiConfigBtn" class="btn btn-primary">保存配置</button>
+                <button id="reloadVideoApiConfigBtn" class="btn btn-ghost">读取</button>
+                <button id="saveVideoApiConfigBtn" class="btn btn-primary">保存</button>
               </div>
             </div>
             <div class="config-path">
@@ -556,10 +556,10 @@
               </label>
             </div>
             <div class="toggle-row">
-              <label class="toggle"><input id="videoUseMock" type="checkbox" checked /> 没有 Key 时启用 mock</label>
+              <label class="toggle"><input id="videoUseMock" type="checkbox" checked /> 无 Key 时启用 mock</label>
               <label class="toggle"><input id="videoOverwrite" type="checkbox" /> 覆盖已有结果</label>
             </div>
-            <p class="panel-note">关闭 `mock` 并填写真实 API Key 后，会严格要求使用官方可访问的视频 URL 和参考图 URL。</p>
+            <p class="panel-note">关闭 `mock` 后请使用可访问的 URL。</p>
           </article>
         </aside>
 
@@ -568,12 +568,12 @@
             <div class="section-header">
               <div>
                 <p class="panel-kicker">Step 05</p>
-                <h2>视频 Prompt 配置文件</h2>
-                <p class="panel-note">视频模块拥有独立的 Prompt 配置文件，可单独调优编辑类输出。</p>
+                <h2>视频 Prompt 配置</h2>
+                <p class="panel-note">直接保存到本地。</p>
               </div>
               <div class="section-actions">
-                <button id="reloadVideoPromptConfigBtn" class="btn btn-ghost">重新读取</button>
-                <button id="saveVideoPromptConfigBtn" class="btn btn-primary">保存配置</button>
+                <button id="reloadVideoPromptConfigBtn" class="btn btn-ghost">读取</button>
+                <button id="saveVideoPromptConfigBtn" class="btn btn-primary">保存</button>
               </div>
             </div>
             <div class="config-path">
@@ -597,7 +597,7 @@
               <div>
                 <p class="panel-kicker">Step 06</p>
                 <h2>匹配预览</h2>
-                <p class="panel-note">先确认配对结果，再批量生成视频编辑 Prompt。</p>
+                <p class="panel-note">确认后再生成。</p>
               </div>
             </div>
             <div class="match-summary" id="videoMatchSummary">
@@ -607,7 +607,7 @@
               <span class="chip">缺失 0</span>
               <span class="chip">冲突 0</span>
             </div>
-            <div id="videoMatchTable" class="table-card empty">完成扫描后，这里会展示每个视频的匹配结果。</div>
+            <div id="videoMatchTable" class="table-card empty">扫描后显示结果</div>
           </article>
 
           <article class="card panel">
@@ -617,15 +617,15 @@
                 <h2>运行与进度</h2>
               </div>
               <div class="section-actions">
-                <button id="reloadVideoFilesBtn" class="btn btn-ghost">重载文件</button>
-                <button id="startVideoBtn" class="btn btn-primary">开始生成</button>
+                <button id="reloadVideoFilesBtn" class="btn btn-ghost">刷新文件</button>
+                <button id="startVideoBtn" class="btn btn-primary">开始</button>
               </div>
             </div>
             <div class="progress-shell">
               <div class="progress-track"><div id="videoProgressBar" class="progress-fill"></div></div>
               <div class="progress-copy">
-                <strong id="videoProgressText">等待开始</strong>
-                <span id="videoProgressDetail">扫描通过后，将直接读取视频文件本体并与参考图一起提交。</span>
+                <strong id="videoProgressText">等待</strong>
+                <span id="videoProgressDetail">这里显示进度。</span>
               </div>
             </div>
           </article>
@@ -648,9 +648,9 @@
                   <p class="panel-kicker">Output</p>
                   <h2>结果文件</h2>
                 </div>
-                <button id="openVideoOutputBtn" class="btn btn-ghost">打开结果文件夹</button>
+                <button id="openVideoOutputBtn" class="btn btn-ghost">打开目录</button>
               </div>
-              <div id="videoOutputList" class="output-list empty">运行后会显示生成的文件</div>
+              <div id="videoOutputList" class="output-list empty">结果将在这里显示</div>
             </article>
           </div>
         </section>
@@ -663,17 +663,17 @@
         <article class="stat card">
           <span>预设</span>
           <strong id="clipPresetBadge">未选择</strong>
-          <small id="clipPresetMeta">等待选择剪辑方式</small>
+          <small id="clipPresetMeta">待选择</small>
         </article>
         <article class="stat card">
           <span>输入视频</span>
           <strong id="clipInputCount">0</strong>
-          <small id="clipInputMeta">等待扫描本地目录</small>
+          <small id="clipInputMeta">待扫描</small>
         </article>
         <article class="stat card">
           <span>状态</span>
           <strong id="clipStatusBadge">待开始</strong>
-          <small id="clipJobMeta">未启动任务</small>
+          <small id="clipJobMeta">未运行</small>
         </article>
         <article class="stat card">
           <span>结果</span>
@@ -688,7 +688,7 @@
             <div class="section-header">
               <div>
                 <p class="panel-kicker">Step 01</p>
-                <h2>选择处理模式</h2>
+                <h2>处理模式</h2>
               </div>
               <span class="chip chip-soft">batch_editing</span>
             </div>
@@ -696,14 +696,14 @@
               <button id="clipSingleModeBtn" type="button" class="btn btn-primary" data-clip-mode="single">单文件夹裁切</button>
               <button id="clipMergeModeBtn" type="button" class="btn btn-ghost" data-clip-mode="merge">双文件夹合并</button>
             </div>
-            <p id="clipModeDescription" class="panel-note">从一个视频文件夹中按预设批量裁切，并生成预览帧。</p>
+            <p id="clipModeDescription" class="panel-note">单目录批量裁切。</p>
           </article>
 
           <article class="card panel">
             <div class="section-header">
               <div>
                 <p class="panel-kicker">Step 02</p>
-                <h2>选择剪辑预设</h2>
+                <h2>剪辑预设</h2>
               </div>
             </div>
             <label class="prompt-field">
@@ -717,7 +717,7 @@
             <div class="section-header">
               <div>
                 <p class="panel-kicker">Step 03</p>
-                <h2>本地输入路径</h2>
+                <h2>输入路径</h2>
               </div>
             </div>
             <label id="clipSingleInputField" class="prompt-field">
@@ -734,7 +734,7 @@
                 <input id="clipInputDirB" class="input" type="text" placeholder="D:\videos\input_folder_b" />
               </label>
             </div>
-            <p class="panel-note">后端会直接读取这些本地文件夹。单文件夹模式按文件名排序处理；合并模式按排序结果一一配对。</p>
+            <p class="panel-note">后端直接读取本地目录。</p>
           </article>
 
           <article class="card panel">
@@ -748,7 +748,7 @@
               <span>结果根目录</span>
               <input id="clipOutputDir" class="input" type="text" placeholder="output\video_clip" />
             </label>
-            <p class="panel-note">每次运行会在这里创建独立的时间戳目录，避免覆盖之前的任务结果。</p>
+            <p class="panel-note">每次运行都会新建目录。</p>
           </article>
         </aside>
 
@@ -761,15 +761,15 @@
               </div>
               <div class="section-actions">
                 <button id="refreshClipJobBtn" class="btn btn-ghost">刷新</button>
-                <button id="openClipOutputBtn" class="btn btn-ghost">打开结果文件夹</button>
-                <button id="startClipBtn" class="btn btn-primary">开始剪辑</button>
+                <button id="openClipOutputBtn" class="btn btn-ghost">打开目录</button>
+                <button id="startClipBtn" class="btn btn-primary">开始</button>
               </div>
             </div>
             <div class="progress-shell">
               <div class="progress-track"><div id="clipProgressBar" class="progress-fill"></div></div>
               <div class="progress-copy">
-                <strong id="clipProgressText">等待开始</strong>
-                <span id="clipProgressDetail">选择预设和本地路径后，开始执行批量剪辑。</span>
+                <strong id="clipProgressText">等待</strong>
+                <span id="clipProgressDetail">这里显示进度。</span>
               </div>
             </div>
           </article>
@@ -792,7 +792,7 @@
                   <h2>剪辑结果</h2>
                 </div>
               </div>
-              <div id="clipOutputList" class="output-list empty">运行后会显示生成的视频和预览帧。</div>
+              <div id="clipOutputList" class="output-list empty">结果将在这里显示</div>
             </article>
           </div>
         </section>

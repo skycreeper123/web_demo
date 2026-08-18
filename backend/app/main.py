@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import json
 import os
+import shutil
+import subprocess
 import sys
 import threading
 import time
@@ -177,8 +179,21 @@ def read_body_json(handler: BaseHTTPRequestHandler) -> dict[str, Any]:
 def open_folder(path: Path) -> None:
     if hasattr(os, "startfile"):
         os.startfile(str(path))
+        return
+
+    if sys.platform == "darwin":
+        opener = "open"
     else:
-        raise RuntimeError("Folder opening is only implemented for Windows in this demo.")
+        opener = "xdg-open"
+
+    opener_path = shutil.which(opener)
+    if not opener_path:
+        raise RuntimeError(f"Could not find '{opener}'. Please open the folder manually: {path}")
+
+    try:
+        subprocess.Popen([opener_path, str(path)])
+    except OSError as exc:
+        raise RuntimeError(f"Failed to open folder '{path}': {exc}") from exc
 
 
 def job_snapshot(job: JobState) -> dict[str, Any]:

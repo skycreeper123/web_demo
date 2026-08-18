@@ -1,35 +1,35 @@
 const VIEW_META = {
   home: {
     title: "首页",
-    subtitle: "进入统一的 Prompt 生成工作台，在一个大模块里切换 3 个子模块，并继续扩展更多类型。",
+    subtitle: "统一入口，覆盖 Prompt 与视频剪辑。",
   },
   promptStudio: {
     title: "Prompt 生成工作台",
-    subtitle: "统一入口管理多个 Prompt 子模块。",
+    subtitle: "统一切换多个 Prompt 模块。",
   },
   clipStudio: {
     title: "视频剪辑工作台",
-    subtitle: "集成 batch_editing 的本地批量裁切和双文件夹合并能力。",
+    subtitle: "本地批量裁切与合并。",
   },
 };
 
 const PROMPT_MODULES = {
   image: {
     title: "图片 -> I2V Prompt",
-    subtitle: "选择图片、编辑图片 Prompt 配置、批量生成图生视频 Prompt。",
-    description: "适合单图或批量图片生成图生视频前置 Prompt。",
+    subtitle: "图片批量生成 I2V Prompt。",
+    description: "I2V Prompt",
     panelId: "imageView",
   },
   imageEdit: {
     title: "图片 -> 图生图 Prompt",
-    subtitle: "选择图片、编辑图生图 Prompt 配置、批量生成高保真图片编辑 Prompt。",
-    description: "适合高保真、小改动的图像编辑 Prompt 生成。",
+    subtitle: "图片批量生成图生图 Prompt。",
+    description: "图生图 Prompt",
     panelId: "imageEditView",
   },
   video: {
     title: "视频 -> 视频编辑 Prompt",
-    subtitle: "选择视频和参考图，先按同名规则匹配，再批量生成视频编辑 Prompt。",
-    description: "适合视频 + 参考图联合生成视频编辑类 Prompt。",
+    subtitle: "视频与参考图生成编辑 Prompt。",
+    description: "视频编辑 Prompt",
     panelId: "videoView",
   },
 };
@@ -571,7 +571,7 @@ function updateViewHeader() {
   if (state.currentView === "promptStudio") {
     const moduleMeta = PROMPT_MODULES[state.activePromptModule];
     els.viewTitle.textContent = VIEW_META.promptStudio.title;
-    els.viewSubtitle.textContent = `当前子模块：${moduleMeta.title}。${moduleMeta.subtitle}`;
+    els.viewSubtitle.textContent = `${moduleMeta.title} · ${moduleMeta.subtitle}`;
     return;
   }
 
@@ -656,7 +656,7 @@ function renderStackList(files, target, emptyText, options = {}) {
   target.innerHTML = `
     <div class="file-summary-card">
       <div class="file-summary-copy">
-        <strong>已加载 ${files.length} 个${escapeHtml(label)}</strong>
+        <strong>${files.length} 个${escapeHtml(label)}</strong>
         <small>总大小 ${formatBytes(totalBytes)} · 格式 ${escapeHtml(summarizeFormats(files))}</small>
       </div>
       ${remainingFiles.length ? `
@@ -666,15 +666,13 @@ function renderStackList(files, target, emptyText, options = {}) {
           data-list-toggle="${escapeHtml(toggleKey)}"
           aria-expanded="${expanded ? "true" : "false"}"
         >
-          ${expanded ? "收起列表" : `展开全部 (${files.length})`}
+          ${expanded ? "收起" : `展开 (${files.length})`}
         </button>
       ` : `
         <span class="chip chip-soft">已全部显示</span>
       `}
     </div>
-    <div class="file-preview-note">
-      默认展示前 ${Math.min(files.length, previewCount)} 项，避免目录过长影响主流程。
-    </div>
+    <div class="file-preview-note">默认显示前 ${Math.min(files.length, previewCount)} 项</div>
     <div class="file-preview-list">
       ${renderFileRows(previewFiles)}
     </div>
@@ -694,7 +692,7 @@ function listViewConfig(toggleKey) {
         files: state.image.files,
         expanded: state.image.filesExpanded,
         target: els.imageFileList,
-        emptyText: "还没有选择图片",
+        emptyText: "未选择图片",
         label: "图片",
       };
     case "imageEdit":
@@ -702,7 +700,7 @@ function listViewConfig(toggleKey) {
         files: state.imageEdit.files,
         expanded: state.imageEdit.filesExpanded,
         target: els.imageEditFileList,
-        emptyText: "还没有选择图片",
+        emptyText: "未选择图片",
         label: "图片",
       };
     case "video":
@@ -710,7 +708,7 @@ function listViewConfig(toggleKey) {
         files: state.video.videoFiles,
         expanded: state.video.videoFilesExpanded,
         target: els.videoFileList,
-        emptyText: "还没有选择视频",
+        emptyText: "未选择视频",
         label: "视频",
       };
     case "reference":
@@ -718,7 +716,7 @@ function listViewConfig(toggleKey) {
         files: state.video.referenceFiles,
         expanded: state.video.referenceFilesExpanded,
         target: els.referenceFileList,
-        emptyText: "还没有选择参考图",
+        emptyText: "未选择参考图",
         label: "参考图",
       };
     default:
@@ -762,7 +760,7 @@ function renderMatchRows(items) {
     <div class="match-row">
       <div>
         <strong>${escapeHtml(item.video)}</strong>
-        <small>${item.canGenerate ? "可生成" : "需修正后再生成"}</small>
+        <small>${item.canGenerate ? "可生成" : "需修正"}</small>
       </div>
       <div>${escapeHtml(item.matchKey)}</div>
       <div>${escapeHtml(item.referenceMain || "-")}</div>
@@ -797,15 +795,15 @@ function renderImageJob(job) {
   const percent = job.total ? Math.round((job.progress / job.total) * 100) : 0;
   els.imageProgressBar.style.width = `${percent}%`;
   els.imageStatusBadge.textContent = toReadableJobStatus(job.status);
-  els.imageJobMeta.textContent = job.id ? `Job ${job.id} · ${job.progress}/${job.total}` : "未启动任务";
+  els.imageJobMeta.textContent = job.id ? `Job ${job.id} · ${job.progress}/${job.total}` : "未运行";
   els.imageProgressText.textContent = toReadableJobStatus(job.status);
   els.imageProgressDetail.textContent = job.status === "completed"
-    ? "图片 Prompt 已生成完成。"
+    ? "已完成"
     : job.status === "failed"
       ? `任务失败：${job.error || "unknown"}`
       : job.status === "running"
-        ? "正在处理图片并保存结果。"
-        : "等待开始。";
+        ? "处理中"
+        : "等待";
   els.imageOutputRootValue.textContent = normalizeDisplayPath(job.output_dir) || normalizeDisplayPath(els.imageOutputDir.value.trim()) || "未设置";
 }
 
@@ -814,15 +812,15 @@ function renderImageEditJob(job) {
   const percent = job.total ? Math.round((job.progress / job.total) * 100) : 0;
   els.imageEditProgressBar.style.width = `${percent}%`;
   els.imageEditStatusBadge.textContent = toReadableJobStatus(job.status);
-  els.imageEditJobMeta.textContent = job.id ? `Job ${job.id} · ${job.progress}/${job.total}` : "未启动任务";
+  els.imageEditJobMeta.textContent = job.id ? `Job ${job.id} · ${job.progress}/${job.total}` : "未运行";
   els.imageEditProgressText.textContent = toReadableJobStatus(job.status);
   els.imageEditProgressDetail.textContent = job.status === "completed"
-    ? "图生图 Prompt 已生成完成。"
+    ? "已完成"
     : job.status === "failed"
       ? `任务失败：${job.error || "unknown"}`
       : job.status === "running"
-        ? "正在分析图片并生成图生图 Prompt。"
-        : "等待开始。";
+        ? "处理中"
+        : "等待";
   els.imageEditOutputRootValue.textContent = normalizeDisplayPath(job.output_dir) || normalizeDisplayPath(els.imageEditOutputDir.value.trim()) || "未设置";
 }
 
@@ -832,12 +830,12 @@ function renderVideoJob(job) {
   els.videoProgressBar.style.width = `${percent}%`;
   els.videoProgressText.textContent = toReadableJobStatus(job.status);
   els.videoProgressDetail.textContent = job.status === "completed"
-    ? "视频编辑 Prompt 已生成完成。"
+    ? "已完成"
     : job.status === "failed"
       ? `任务失败：${job.error || "unknown"}`
       : job.status === "running"
-        ? "正在打包视频并提交生成任务。"
-        : "等待开始。";
+        ? "处理中"
+        : "等待";
 }
 
 function setImageLog(lines) {
@@ -863,18 +861,18 @@ function renderClipPresetDescription() {
   const preset = getClipPreset();
   els.clipPresetDescription.textContent = preset
     ? `${preset.group} · ${preset.description}`
-    : "暂无可用剪辑预设。";
+    : "暂无预设";
 }
 
 function updateClipSummary() {
   const preset = getClipPreset();
   const isMergeMode = state.clip.mode === "merge";
   els.clipPresetBadge.textContent = preset?.label || "未选择";
-  els.clipPresetMeta.textContent = preset ? `${preset.group} · ${preset.description}` : "等待读取剪辑预设";
+  els.clipPresetMeta.textContent = preset ? `${preset.group} · ${preset.description}` : "读取中";
   els.clipInputCount.textContent = isMergeMode ? "2" : "1";
   els.clipInputMeta.textContent = isMergeMode
-    ? "两个本地视频文件夹，按排序配对"
-    : "一个本地视频文件夹，批量裁切";
+    ? "双目录配对"
+    : "单目录裁切";
   els.clipOutputRootValue.textContent = normalizeDisplayPath(els.clipOutputDir.value.trim()) || "output/video_clip";
 }
 
@@ -930,8 +928,8 @@ function setClipMode(mode) {
   els.clipSingleInputField.hidden = !isSingleMode;
   els.clipMergeInputFields.hidden = isSingleMode;
   els.clipModeDescription.textContent = isSingleMode
-    ? "从一个视频文件夹中按预设批量裁切，并生成预览帧。"
-    : "从两个视频文件夹中按文件名排序后一一配对，将每对视频顺序拼接。";
+    ? "单目录批量裁切。"
+    : "双目录顺序合并。";
 
   renderClipPresetOptions();
 }
@@ -968,7 +966,7 @@ function renderClipOutputs(items) {
 
   if (!state.clip.outputs.length) {
     els.clipOutputList.classList.add("empty");
-    els.clipOutputList.textContent = "运行后会显示生成的视频和预览帧。";
+    els.clipOutputList.textContent = "结果将在这里显示";
     return;
   }
 
@@ -1001,16 +999,16 @@ function renderClipJob(job) {
   els.clipJobMeta.textContent = job.id
     ? job.total
       ? `Job ${job.id} · ${job.progress}/${job.total}`
-      : `Job ${job.id} · 正在扫描输入目录`
-    : "未启动任务";
+      : `Job ${job.id} · 扫描中`
+    : "未运行";
   els.clipProgressText.textContent = toReadableJobStatus(job.status);
   els.clipProgressDetail.textContent = job.status === "completed"
-    ? "视频批处理已完成，可打开结果文件夹查看全部产物。"
+    ? "已完成"
     : job.status === "failed"
       ? `任务失败：${job.error || "unknown"}`
       : job.status === "running"
-        ? "正在读取本地视频并执行批量剪辑。"
-        : "等待开始。";
+        ? "处理中"
+        : "等待";
   els.clipOutputRootValue.textContent = normalizeDisplayPath(job.output_dir)
     || normalizeDisplayPath(els.clipOutputDir.value.trim())
     || "output/video_clip";
@@ -1037,7 +1035,7 @@ async function startClipJob() {
 
     els.startClipBtn.disabled = true;
     els.clipProgressText.textContent = "准备中";
-    els.clipProgressDetail.textContent = "正在提交本地批处理任务。";
+    els.clipProgressDetail.textContent = "正在提交任务。";
 
     const res = await fetch("/api/clip/run", {
       method: "POST",
@@ -1086,7 +1084,7 @@ async function pollClipJob() {
 
 async function openClipOutput() {
   if (!state.clip.jobId) {
-    alert("请先运行一次视频剪辑任务");
+    alert("请先运行剪辑任务");
     return;
   }
   const res = await fetch(`/api/jobs/${state.clip.jobId}/open-output`, { method: "POST" });
@@ -1419,12 +1417,12 @@ async function startImageGeneration() {
   try {
     els.startImageBtn.disabled = true;
     els.imageProgressText.textContent = "准备中";
-    els.imageProgressDetail.textContent = "正在整理图片输入并提交任务。";
+    els.imageProgressDetail.textContent = "正在提交任务。";
 
     let images = getImageItemsForSubmission();
     if (!images) {
       if (!state.image.files.length) {
-        throw new Error("请先选择图片，或填写可访问的图片 URL。");
+        throw new Error("请先选择图片或填写图片 URL。");
       }
       images = [];
       for (const file of state.image.files) {
@@ -1478,7 +1476,7 @@ async function pollImageJob() {
       const filesRes = await fetch(`/api/jobs/${state.image.jobId}/files`);
       const filesData = await filesRes.json();
       state.image.outputs = filesData.files || [];
-      renderOutputList(state.image.outputs, els.imageOutputList, els.imageResultCount, "运行后会显示生成的文件");
+      renderOutputList(state.image.outputs, els.imageOutputList, els.imageResultCount, "结果将在这里显示");
     }
 
     if (job.status === "completed" || job.status === "failed") {
@@ -1493,7 +1491,7 @@ async function pollImageJob() {
 
 async function openImageOutput() {
   if (!state.image.jobId) {
-    alert("请先运行一次图片生成任务");
+    alert("请先运行图片任务");
     return;
   }
   const res = await fetch(`/api/jobs/${state.image.jobId}/open-output`, { method: "POST" });
@@ -1507,12 +1505,12 @@ async function startImageEditGeneration() {
   try {
     els.startImageEditBtn.disabled = true;
     els.imageEditProgressText.textContent = "准备中";
-    els.imageEditProgressDetail.textContent = "正在整理图片输入并提交任务。";
+    els.imageEditProgressDetail.textContent = "正在提交任务。";
 
     let images = getImageEditItemsForSubmission();
     if (!images) {
       if (!state.imageEdit.files.length) {
-        throw new Error("请先选择图片，或填写可访问的图片 URL。");
+        throw new Error("请先选择图片或填写图片 URL。");
       }
       images = [];
       for (const file of state.imageEdit.files) {
@@ -1566,7 +1564,7 @@ async function pollImageEditJob() {
       const filesRes = await fetch(`/api/jobs/${state.imageEdit.jobId}/files`);
       const filesData = await filesRes.json();
       state.imageEdit.outputs = filesData.files || [];
-      renderOutputList(state.imageEdit.outputs, els.imageEditOutputList, els.imageEditResultCount, "运行后会显示生成的文件");
+      renderOutputList(state.imageEdit.outputs, els.imageEditOutputList, els.imageEditResultCount, "结果将在这里显示");
     }
 
     if (job.status === "completed" || job.status === "failed") {
@@ -1581,7 +1579,7 @@ async function pollImageEditJob() {
 
 async function openImageEditOutput() {
   if (!state.imageEdit.jobId) {
-    alert("请先运行一次图生图生成任务");
+    alert("请先运行图生图任务");
     return;
   }
   const res = await fetch(`/api/jobs/${state.imageEdit.jobId}/open-output`, { method: "POST" });
@@ -1595,10 +1593,10 @@ async function scanVideoMatches() {
   try {
     const { videos, references } = getVideoAndReferenceEntries();
     if (!videos.length) {
-      throw new Error("请先选择视频文件，或填写可访问的视频 URL。");
+      throw new Error("请先选择视频或填写视频 URL。");
     }
     if (!references.length) {
-      throw new Error("请先选择参考图文件，或填写可访问的参考图 URL。");
+      throw new Error("请先选择参考图或填写参考图 URL。");
     }
 
     const res = await fetch("/api/video/scan-match", {
@@ -1630,7 +1628,7 @@ function renderVideoMatches() {
   els.videoMatchSummary.innerHTML = `
     <span class="chip">总数 ${summary.total}</span>
     <span class="chip">成功 ${summary.matched}</span>
-    <span class="chip">部分匹配 ${summary.partial_match}</span>
+    <span class="chip">部分 ${summary.partial_match}</span>
     <span class="chip">缺失 ${summary.missing_reference}</span>
     <span class="chip">冲突 ${summary.naming_conflict}</span>
   `;
@@ -1638,12 +1636,12 @@ function renderVideoMatches() {
   const validCount = state.video.matchResults.filter((item) => item.canGenerate).length;
   els.videoMatchBadge.textContent = summary.total ? `${validCount}/${summary.total}` : "未扫描";
   els.videoMatchMeta.textContent = summary.total
-    ? `可生成 ${validCount} 条，阻塞 ${summary.missing_reference + summary.naming_conflict} 条`
-    : "等待扫描";
+    ? `${validCount} 可用 / ${summary.missing_reference + summary.naming_conflict} 阻塞`
+    : "待扫描";
 
   if (!state.video.matchResults.length) {
     els.videoMatchTable.classList.add("empty");
-    els.videoMatchTable.textContent = "完成扫描后，这里会展示每个视频的匹配结果。";
+    els.videoMatchTable.textContent = "扫描后显示结果";
     return;
   }
 
@@ -1661,7 +1659,7 @@ function renderVideoMatches() {
       <div class="match-row">
         <div>
           <strong>${escapeHtml(item.video)}</strong>
-          <small>${item.canGenerate ? "可生成" : "需修正后再生成"}</small>
+          <small>${item.canGenerate ? "可生成" : "需修正"}</small>
         </div>
         <div>${escapeHtml(item.matchKey)}</div>
         <div>${escapeHtml(item.referenceMain || "-")}</div>
@@ -1684,7 +1682,7 @@ function renderVideoMatches() {
   els.videoMatchSummary.innerHTML = `
     <span class="chip">总数 ${summary.total}</span>
     <span class="chip">成功 ${summary.matched}</span>
-    <span class="chip">部分匹配 ${summary.partial_match}</span>
+    <span class="chip">部分 ${summary.partial_match}</span>
     <span class="chip">缺失 ${summary.missing_reference}</span>
     <span class="chip">冲突 ${summary.naming_conflict}</span>
   `;
@@ -1692,12 +1690,12 @@ function renderVideoMatches() {
   const validCount = state.video.matchResults.filter((item) => item.canGenerate).length;
   els.videoMatchBadge.textContent = summary.total ? `${validCount}/${summary.total}` : "未扫描";
   els.videoMatchMeta.textContent = summary.total
-    ? `可生成 ${validCount} 条，阻塞 ${summary.missing_reference + summary.naming_conflict} 条`
-    : "等待扫描";
+    ? `${validCount} 可用 / ${summary.missing_reference + summary.naming_conflict} 阻塞`
+    : "待扫描";
 
   if (!state.video.matchResults.length) {
     els.videoMatchTable.classList.add("empty");
-    els.videoMatchTable.textContent = "完成扫描后，这里会展示每个视频的匹配结果。";
+    els.videoMatchTable.textContent = "扫描后显示结果";
     return;
   }
 
@@ -1710,8 +1708,8 @@ function renderVideoMatches() {
     <div class="match-preview-shell">
       <div class="file-summary-card">
         <div class="file-summary-copy">
-          <strong>已生成 ${state.video.matchResults.length} 条匹配结果</strong>
-          <small>默认展示前 ${Math.min(state.video.matchResults.length, previewCount)} 条，详细结果可按需展开。</small>
+          <strong>${state.video.matchResults.length} 条匹配</strong>
+          <small>默认显示前 ${Math.min(state.video.matchResults.length, previewCount)} 条</small>
         </div>
         ${remainingMatches.length ? `
           <button
@@ -1720,7 +1718,7 @@ function renderVideoMatches() {
             data-match-toggle="video"
             aria-expanded="${state.video.matchResultsExpanded ? "true" : "false"}"
           >
-            ${state.video.matchResultsExpanded ? "收起匹配表" : `展开全部 (${state.video.matchResults.length})`}
+            ${state.video.matchResultsExpanded ? "收起" : `展开 (${state.video.matchResults.length})`}
           </button>
         ` : `
           <span class="chip chip-soft">已全部显示</span>
@@ -1741,7 +1739,7 @@ function renderVideoMatches() {
 
       ${remainingMatches.length ? `
         <div class="match-expand-shell ${state.video.matchResultsExpanded ? "is-open" : ""}">
-          <div class="file-expand-note">其余 ${remainingMatches.length} 条匹配结果</div>
+          <div class="file-expand-note">其余 ${remainingMatches.length} 条</div>
           ${state.video.matchResultsExpanded ? `
             <div class="match-table-scroll">
               ${renderMatchRows(remainingMatches)}
@@ -1756,7 +1754,7 @@ function renderVideoMatches() {
 async function prepareVideoGenerationItems() {
   const candidates = state.video.matchResults.filter((item) => item.canGenerate);
   if (!candidates.length) {
-    throw new Error("当前没有可生成的视频条目，请先扫描并修正匹配结果。");
+    throw new Error("没有可生成条目，请先扫描并修正匹配。");
   }
 
   const { videos, references } = getVideoAndReferenceEntries();
@@ -1815,7 +1813,7 @@ async function startVideoGeneration() {
   try {
     els.startVideoBtn.disabled = true;
     els.videoProgressText.textContent = "准备中";
-    els.videoProgressDetail.textContent = "正在检查匹配结果并读取视频文件。";
+    els.videoProgressDetail.textContent = "正在读取文件。";
 
     const videos = await prepareVideoGenerationItems();
     const res = await fetch("/api/generate/video-prompt", {
@@ -1863,7 +1861,7 @@ async function pollVideoJob() {
       const filesRes = await fetch(`/api/jobs/${state.video.jobId}/files`);
       const filesData = await filesRes.json();
       state.video.outputs = filesData.files || [];
-      renderOutputList(state.video.outputs, els.videoOutputList, els.videoResultCount, "运行后会显示生成的文件");
+      renderOutputList(state.video.outputs, els.videoOutputList, els.videoResultCount, "结果将在这里显示");
     }
 
     if (job.status === "completed" || job.status === "failed") {
@@ -1878,7 +1876,7 @@ async function pollVideoJob() {
 
 async function openVideoOutput() {
   if (!state.video.jobId) {
-    alert("请先运行一次视频生成任务");
+    alert("请先运行视频任务");
     return;
   }
   const res = await fetch(`/api/jobs/${state.video.jobId}/open-output`, { method: "POST" });
@@ -2018,7 +2016,7 @@ function bindEvents() {
     const res = await fetch(`/api/jobs/${state.image.jobId}/files`);
     const data = await res.json();
     state.image.outputs = data.files || [];
-    renderOutputList(state.image.outputs, els.imageOutputList, els.imageResultCount, "运行后会显示生成的文件");
+    renderOutputList(state.image.outputs, els.imageOutputList, els.imageResultCount, "结果将在这里显示");
   });
   els.openImageOutputBtn.addEventListener("click", openImageOutput);
 
@@ -2033,7 +2031,7 @@ function bindEvents() {
     const res = await fetch(`/api/jobs/${state.imageEdit.jobId}/files`);
     const data = await res.json();
     state.imageEdit.outputs = data.files || [];
-    renderOutputList(state.imageEdit.outputs, els.imageEditOutputList, els.imageEditResultCount, "运行后会显示生成的文件");
+    renderOutputList(state.imageEdit.outputs, els.imageEditOutputList, els.imageEditResultCount, "结果将在这里显示");
   });
   els.openImageEditOutputBtn.addEventListener("click", openImageEditOutput);
 
@@ -2049,7 +2047,7 @@ function bindEvents() {
     const res = await fetch(`/api/jobs/${state.video.jobId}/files`);
     const data = await res.json();
     state.video.outputs = data.files || [];
-    renderOutputList(state.video.outputs, els.videoOutputList, els.videoResultCount, "运行后会显示生成的文件");
+    renderOutputList(state.video.outputs, els.videoOutputList, els.videoResultCount, "结果将在这里显示");
   });
   els.openVideoOutputBtn.addEventListener("click", openVideoOutput);
 
@@ -2074,9 +2072,9 @@ async function init() {
   renderNamedStackList("video");
   renderNamedStackList("reference");
   setClipLog([]);
-  renderOutputList([], els.imageOutputList, els.imageResultCount, "运行后会显示生成的文件");
-  renderOutputList([], els.imageEditOutputList, els.imageEditResultCount, "运行后会显示生成的文件");
-  renderOutputList([], els.videoOutputList, els.videoResultCount, "运行后会显示生成的文件");
+  renderOutputList([], els.imageOutputList, els.imageResultCount, "结果将在这里显示");
+  renderOutputList([], els.imageEditOutputList, els.imageEditResultCount, "结果将在这里显示");
+  renderOutputList([], els.videoOutputList, els.videoResultCount, "结果将在这里显示");
   renderImageJob({ id: "", status: "idle", progress: 0, total: 0, error: "", output_dir: "" });
   renderImageEditJob({ id: "", status: "idle", progress: 0, total: 0, error: "", output_dir: "" });
   renderVideoJob({ id: "", status: "idle", progress: 0, total: 0, error: "", output_dir: "" });
