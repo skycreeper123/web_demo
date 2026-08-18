@@ -15,7 +15,7 @@
         <div>
           <p class="eyebrow">Prompt Tool Studio</p>
           <h1 id="viewTitle">首页</h1>
-          <p id="viewSubtitle" class="subtle">在两个工作流之间切换：图片 I2V Prompt 和视频编辑 Prompt。</p>
+          <p id="viewSubtitle" class="subtle">进入统一的 Prompt 生成工作台，在一个大模块里切换 3 个子模块，并继续扩展更多类型。</p>
         </div>
       </div>
       <div class="topbar-actions">
@@ -26,52 +26,52 @@
     </header>
 
     <section id="homeView" class="view">
-      <div class="home-grid">
-        <article class="feature-card card">
-          <div class="feature-copy">
-            <p class="panel-kicker">Module 01</p>
-            <h2>图片 -> I2V Prompt</h2>
-            <p>读取单张或批量图片，结合图片专用 Prompt 配置文件，生成适合图生视频模型的中英文 Prompt。</p>
-            <ul class="feature-list">
-              <li>支持拖拽图片和文件夹</li>
-              <li>支持编辑图片专用 Prompt 配置文件</li>
-              <li>输出 JSON、TXT 和汇总 CSV</li>
-            </ul>
-          </div>
-          <button id="goImageViewBtn" class="btn btn-primary">进入图片模块</button>
-        </article>
+      <div class="home-stack">
+        <article class="feature-card feature-card-wide card">
+          <div class="feature-layout">
+            <div class="feature-copy">
+              <p class="panel-kicker">Main Module</p>
+              <h2>Prompt 生成工作台</h2>
+              <p>把原本分散的 3 个 Prompt 生成功能统一收进一个大模块里，后续新增别的 Prompt 类型时，也能沿着同一套入口、切换和配置结构继续扩展。</p>
+              <ul class="feature-list">
+                <li>统一入口管理图片、图生图和视频编辑 Prompt</li>
+                <li>子模块独立保留各自的输入区、配置区、运行区和输出区</li>
+                <li>后续新增第 4、第 5 种模块时，只需接入同一套注册和切换结构</li>
+              </ul>
+              <div class="feature-actions">
+                <button id="goPromptStudioBtn" class="btn btn-primary">进入 Prompt 工作台</button>
+              </div>
+            </div>
 
-        <article class="feature-card card">
-          <div class="feature-copy">
-            <p class="panel-kicker">Module 02</p>
-            <h2>图片 -> 图生图 Prompt</h2>
-            <p>读取图片目录，自动生成偏保真、最小改动的图生图编辑 Prompt，适合图片编辑模型直接使用。</p>
-            <ul class="feature-list">
-              <li>支持拖拽图片和文件夹</li>
-              <li>支持编辑图生图专用 Prompt 配置文件</li>
-              <li>输出 JSON、TXT 和汇总 CSV</li>
-            </ul>
+            <div class="module-overview card-shell">
+              <div class="section-header compact">
+                <div>
+                  <p class="panel-kicker">Included</p>
+                  <h2>当前已集成子模块</h2>
+                </div>
+                <span class="chip chip-soft">统一切换</span>
+              </div>
+              <div id="promptModuleOverview" class="module-card-grid"></div>
+            </div>
           </div>
-          <button id="goImageEditViewBtn" class="btn btn-primary">进入图生图模块</button>
-        </article>
-
-        <article class="feature-card card">
-          <div class="feature-copy">
-            <p class="panel-kicker">Module 03</p>
-            <h2>视频 -> 视频编辑 Prompt</h2>
-            <p>选择视频目录和参考图目录，按同名规则自动匹配，预览配对结果后生成视频编辑类 Prompt。</p>
-            <ul class="feature-list">
-              <li>同名匹配：a001 -> a001 / a001_1 / a001_2</li>
-              <li>支持视频本体 + 参考图联合输入</li>
-              <li>支持编辑视频专用 Prompt 配置文件</li>
-            </ul>
-          </div>
-          <button id="goVideoViewBtn" class="btn btn-primary">进入视频模块</button>
         </article>
       </div>
     </section>
 
-    <section id="imageView" class="view" hidden>
+    <section id="promptStudioView" class="view" hidden>
+      <article class="card studio-shell">
+        <div class="section-header studio-header">
+          <div>
+            <p class="panel-kicker">Workspace</p>
+            <h2>Prompt 子模块</h2>
+            <p class="panel-note">在同一个工作台里切换不同 Prompt 类型，后面新增模块时也能复用这一层导航。</p>
+          </div>
+          <span class="chip">统一大模块</span>
+        </div>
+        <div id="promptModuleTabs" class="module-switcher"></div>
+      </article>
+
+      <section id="imageView" class="prompt-module-panel">
       <section class="stats-grid">
         <article class="stat card">
           <span>图片</span>
@@ -237,7 +237,7 @@
       </section>
     </section>
 
-    <section id="imageEditView" class="view" hidden>
+      <section id="imageEditView" class="prompt-module-panel" hidden>
       <section class="stats-grid">
         <article class="stat card">
           <span>图片</span>
@@ -403,7 +403,7 @@
       </section>
     </section>
 
-    <section id="videoView" class="view" hidden>
+      <section id="videoView" class="prompt-module-panel" hidden>
       <section class="stats-grid">
         <article class="stat card">
           <span>视频</span>
@@ -618,6 +618,7 @@
             </article>
           </div>
         </section>
+      </section>
       </section>
     </section>
   </main>

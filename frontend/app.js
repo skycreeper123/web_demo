@@ -1,24 +1,38 @@
 const VIEW_META = {
   home: {
     title: "首页",
-    subtitle: "在三个工作流之间切换：图片 I2V Prompt、图生图 Prompt 和视频编辑 Prompt。",
+    subtitle: "进入统一的 Prompt 生成工作台，在一个大模块里切换 3 个子模块，并继续扩展更多类型。",
   },
+  promptStudio: {
+    title: "Prompt 生成工作台",
+    subtitle: "统一入口管理多个 Prompt 子模块。",
+  },
+};
+
+const PROMPT_MODULES = {
   image: {
     title: "图片 -> I2V Prompt",
     subtitle: "选择图片、编辑图片 Prompt 配置、批量生成图生视频 Prompt。",
+    description: "适合单图或批量图片生成图生视频前置 Prompt。",
+    panelId: "imageView",
   },
   imageEdit: {
     title: "图片 -> 图生图 Prompt",
     subtitle: "选择图片、编辑图生图 Prompt 配置、批量生成高保真图片编辑 Prompt。",
+    description: "适合高保真、小改动的图像编辑 Prompt 生成。",
+    panelId: "imageEditView",
   },
   video: {
     title: "视频 -> 视频编辑 Prompt",
     subtitle: "选择视频和参考图，先按同名规则匹配，再批量生成视频编辑 Prompt。",
+    description: "适合视频 + 参考图联合生成视频编辑类 Prompt。",
+    panelId: "videoView",
   },
 };
 
 const state = {
   currentView: "home",
+  activePromptModule: "image",
   defaults: null,
   browserSessionId: "",
   browserHeartbeatTimer: null,
@@ -66,12 +80,16 @@ const els = {
   navBackBtn: document.getElementById("navBackBtn"),
   shutdownAppBtn: document.getElementById("shutdownAppBtn"),
   homeView: document.getElementById("homeView"),
+  promptStudioView: document.getElementById("promptStudioView"),
+  goPromptStudioBtn: document.getElementById("goPromptStudioBtn"),
+  promptModuleOverview: document.getElementById("promptModuleOverview"),
+  promptModuleTabs: document.getElementById("promptModuleTabs"),
   imageView: document.getElementById("imageView"),
   imageEditView: document.getElementById("imageEditView"),
   videoView: document.getElementById("videoView"),
-  goImageViewBtn: document.getElementById("goImageViewBtn"),
-  goImageEditViewBtn: document.getElementById("goImageEditViewBtn"),
-  goVideoViewBtn: document.getElementById("goVideoViewBtn"),
+  promptModulePanels: Object.fromEntries(
+    Object.entries(PROMPT_MODULES).map(([key, moduleMeta]) => [key, document.getElementById(moduleMeta.panelId)])
+  ),
 
   imageInput: document.getElementById("imageInput"),
   imageDropzone: document.getElementById("imageDropzone"),
@@ -463,15 +481,83 @@ function statusClass(status) {
   }
 }
 
-function setView(view) {
+function renderPromptModuleOverview() {
+  els.promptModuleOverview.innerHTML = Object.entries(PROMPT_MODULES).map(([key, moduleMeta], index) => `
+    <article class="module-card ${state.activePromptModule === key ? "is-active" : ""}">
+      <div>
+        <p class="panel-kicker">Module ${String(index + 1).padStart(2, "0")}</p>
+        <strong>${escapeHtml(moduleMeta.title)}</strong>
+        <small>${escapeHtml(moduleMeta.description)}</small>
+      </div>
+      <button type="button" class="btn btn-ghost" data-open-prompt-module="${escapeHtml(key)}">
+        进入子模块
+      </button>
+    </article>
+  `).join("");
+}
+
+function renderPromptModuleTabs() {
+  els.promptModuleTabs.innerHTML = Object.entries(PROMPT_MODULES).map(([key, moduleMeta]) => `
+    <button
+      type="button"
+      class="module-tab ${state.activePromptModule === key ? "is-active" : ""}"
+      data-prompt-module="${escapeHtml(key)}"
+      aria-pressed="${state.activePromptModule === key ? "true" : "false"}"
+    >
+      <strong>${escapeHtml(moduleMeta.title)}</strong>
+      <small>${escapeHtml(moduleMeta.description)}</small>
+    </button>
+  `).join("");
+}
+
+function updatePromptModuleNavigation() {
+  els.promptModuleOverview.querySelectorAll(".module-card").forEach((card) => {
+    const button = card.querySelector("[data-open-prompt-module]");
+    if (!button) return;
+    card.classList.toggle("is-active", button.dataset.openPromptModule === state.activePromptModule);
+  });
+
+  els.promptModuleTabs.querySelectorAll("[data-prompt-module]").forEach((button) => {
+    const isActive = button.dataset.promptModule === state.activePromptModule;
+    button.classList.toggle("is-active", isActive);
+    button.setAttribute("aria-pressed", isActive ? "true" : "false");
+  });
+}
+
+function updateViewHeader() {
+  if (state.currentView === "promptStudio") {
+    const moduleMeta = PROMPT_MODULES[state.activePromptModule];
+    els.viewTitle.textContent = VIEW_META.promptStudio.title;
+    els.viewSubtitle.textContent = `当前子模块：${moduleMeta.title}。${moduleMeta.subtitle}`;
+    return;
+  }
+
+  els.viewTitle.textContent = VIEW_META.home.title;
+  els.viewSubtitle.textContent = VIEW_META.home.subtitle;
+}
+
+function setActivePromptModule(moduleKey) {
+  if (!PROMPT_MODULES[moduleKey]) return;
+  state.activePromptModule = moduleKey;
+  Object.entries(els.promptModulePanels).forEach(([key, panel]) => {
+    panel.hidden = key !== moduleKey;
+  });
+  updatePromptModuleNavigation();
+  updateViewHeader();
+}
+
+function setView(view, moduleKey = state.activePromptModule) {
   state.currentView = view;
   els.homeView.hidden = view !== "home";
-  els.imageView.hidden = view !== "image";
-  els.imageEditView.hidden = view !== "imageEdit";
-  els.videoView.hidden = view !== "video";
-  els.viewTitle.textContent = VIEW_META[view].title;
-  els.viewSubtitle.textContent = VIEW_META[view].subtitle;
+  els.promptStudioView.hidden = view !== "promptStudio";
   els.navBackBtn.disabled = view === "home";
+
+  if (view === "promptStudio") {
+    setActivePromptModule(moduleKey);
+    return;
+  }
+
+  updateViewHeader();
 }
 
 function setModuleModeBadge(apiInput, mockCheckbox, badgeEl) {
@@ -1515,11 +1601,21 @@ function bindEvents() {
   els.navHomeBtn.addEventListener("click", () => setView("home"));
   els.navBackBtn.addEventListener("click", () => setView("home"));
   els.shutdownAppBtn.addEventListener("click", shutdownApp);
-  els.goImageViewBtn.addEventListener("click", () => setView("image"));
-  els.goImageEditViewBtn.addEventListener("click", () => setView("imageEdit"));
-  els.goVideoViewBtn.addEventListener("click", () => setView("video"));
+  els.goPromptStudioBtn.addEventListener("click", () => setView("promptStudio", state.activePromptModule));
 
   document.addEventListener("click", (event) => {
+    const overviewButton = event.target.closest("[data-open-prompt-module]");
+    if (overviewButton) {
+      setView("promptStudio", overviewButton.dataset.openPromptModule);
+      return;
+    }
+
+    const moduleTabButton = event.target.closest("[data-prompt-module]");
+    if (moduleTabButton) {
+      setActivePromptModule(moduleTabButton.dataset.promptModule);
+      return;
+    }
+
     const matchToggleButton = event.target.closest("[data-match-toggle]");
     if (matchToggleButton) {
       state.video.matchResultsExpanded = !state.video.matchResultsExpanded;
@@ -1651,6 +1747,8 @@ function bindEvents() {
 }
 
 async function init() {
+  renderPromptModuleOverview();
+  renderPromptModuleTabs();
   bindEvents();
   await registerBrowserSession();
   startBrowserHeartbeat();
