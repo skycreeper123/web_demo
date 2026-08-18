@@ -3,7 +3,7 @@
 ## 1. 文档信息
 
 - 文档名称：本地 App 与自托管 ComfyUI Server 通信模块开发文档
-- 文档版本：v1.1
+- 文档版本：v1.2
 - 文档日期：2026-08-18
 - 适用对象：客户端开发、服务集成开发、测试人员
 - 文档范围：仅描述本地 App 与本地自托管 ComfyUI Server 之间的通信模块，不包含 Prompt 生成逻辑、工作流算法设计和业务 UI
@@ -31,6 +31,7 @@
 - 模板固定：工作流结构预先定义，通信模块仅填充输入参数
 - 单任务单提交：每条输入组合对应一次独立的 ComfyUI 提交
 - 结果可追踪：所有任务必须以 `job_id` 建立输入、提交、输出的完整映射
+- 服务端响应优先：涉及 `prompt_id`、队列位置、历史结果等关键字段时，必须以 ComfyUI 服务端实际响应为准
 - 失败可恢复：网络失败、执行失败、超时、结果缺失都必须有统一错误出口
 
 ## 4. 模块边界
@@ -178,6 +179,8 @@
 
 说明：
 
+- `prompt_id` 必须取自 `POST /prompt` 的实际响应结果；如果请求中主动传入了 `prompt_id`，模块也必须校验响应中的 `prompt_id` 是否与期望值一致
+- 通信模块内部必须维护 `job_id -> prompt_id` 的稳定映射，不允许仅依赖文件命名规则反推
 - Windows 示例路径可写为 `C:/ComfyUI/output/video/jobs/job_20260818_0001/result_00001.mp4`
 - Linux 示例路径可写为 `/opt/ComfyUI/output/video/jobs/job_20260818_0001/result_00001.mp4`
 - 推荐模块内部统一使用路径拼接函数，不直接手写分隔符
@@ -194,7 +197,7 @@ getStatus(jobId: string): Promise<JobStatus>
 getResult(jobId: string): Promise<JobResult>
 cancel(jobId: string): Promise<CancelResult>
 retry(jobId: string): Promise<SubmitResult>
-freeMemory(): Promise<void>
+freeMemory(request?: FreeMemoryRequest): Promise<void>
 ```
 
 建议职责如下：
@@ -206,7 +209,7 @@ freeMemory(): Promise<void>
 - `getResult(jobId)`：读取历史信息并回收结果文件
 - `cancel(jobId)`：取消运行中任务
 - `retry(jobId)`：基于原始任务重新提交
-- `freeMemory()`：必要时释放模型内存
+- `freeMemory(request?)`：按显式策略释放模型内存；如果当前版本业务上暂不需要，可不对 UI 暴露
 
 ## 10. ComfyUI 侧接口依赖
 
@@ -217,6 +220,7 @@ freeMemory(): Promise<void>
 - `GET /system_stats`
 - `GET /object_info`
 - `GET /queue`
+- `POST /queue`
 - `POST /prompt`
 - `GET /history/{prompt_id}`
 - `POST /interrupt`
@@ -233,6 +237,7 @@ freeMemory(): Promise<void>
 - `POST /prompt` 为核心任务提交接口
 - `/ws` 用于状态监听
 - `/history/{prompt_id}` 用于任务完成后的历史查询
+- `POST /queue` 用于删除排队中的任务或清空待执行队列
 - `/upload/image` 仅用于图片上传场景
 - 视频输入推荐直接落到 ComfyUI `input` 目录
 
@@ -343,7 +348,13 @@ freeMemory(): Promise<void>
 
 - `prompt`：API 格式工作流
 - `client_id`：通信模块对应的 WebSocket 客户端标识
-- `prompt_id`：建议与业务 `job_id` 保持一致
+- `prompt_id`：可选；如使用，建议与业务 `job_id` 保持一致，便于排查与回溯
+
+强制约束：
+
+- 不论请求体中是否传入 `prompt_id`，模块都必须以 `POST /prompt` 的响应结果作为最终 `prompt_id`
+- 如果请求体中传入了期望的 `prompt_id`，而响应中的 `prompt_id` 不一致，模块必须立即判定为提交异常并进入 `FAILED`
+- 提交成功后，模块必须立刻持久化或缓存 `job_id -> prompt_id -> client_id` 映射，供监听、取消、重试和结果查询复用
 
 成功响应示例：
 
@@ -401,6 +412,11 @@ freeMemory(): Promise<void>
 8. 用户主动取消进入 `CANCELLED`
 9. 超过设定时限进入 `TIMEOUT`
 
+补充规则：
+
+- `SUBMITTED` 仅表示服务端已接受任务，不表示任务一定开始执行
+- `QUEUED`、`RUNNING`、`SUCCEEDED`、`FAILED`、`CANCELLED` 的判定都必须同时结合 `prompt_id` 过滤，避免多个任务共用同一 WebSocket 时串状态
+
 ## 15. WebSocket 监听规范
 
 通信模块启动后应维持一个长期 WebSocket 连接：
@@ -432,6 +448,8 @@ freeMemory(): Promise<void>
 补充规则：
 
 - 当 `executing` 消息中的 `node` 为 `null` 时，可视为当前任务执行结束
+- 所有 JSON 消息都必须按 `prompt_id` 过滤后再更新任务状态
+- 根据 ComfyUI 官方 API 示例，`/ws` 可能收到二进制帧；通信模块必须能够识别非文本帧，并在当前场景下安全忽略与本模块无关的二进制消息，而不是将其当作协议错误
 - WebSocket 断开后应自动重连
 - 重连成功后应主动调用 `/queue` 与 `/history` 做状态校正
 
@@ -443,9 +461,10 @@ freeMemory(): Promise<void>
 
 1. 收到 `execution_success` 或识别到执行结束
 2. 调用 `GET /history/{prompt_id}` 获取任务历史信息
-3. 根据 `output_prefix` 或固定输出命名规则定位输出视频
-4. 校验目标文件存在且可读
-5. 将最终 `output_path` 返回给 App 上层
+3. 优先根据历史结果中的 `outputs`、节点类型和输出元数据定位目标视频
+4. 仅在历史结果不足以唯一定位文件时，才回退到 `output_prefix` 或固定命名规则扫描文件系统
+5. 校验目标文件存在且可读
+6. 将最终 `output_path` 返回给 App 上层
 
 推荐输出目录约定：
 
@@ -502,7 +521,16 @@ freeMemory(): Promise<void>
 通信模块应提供任务取消能力：
 
 - 对当前运行中任务，调用 `POST /interrupt`
-- 对排队中任务，结合 `/queue` 和模块内状态做管理
+- 对排队中任务，调用 `POST /queue`，请求体推荐为：
+
+```json
+{
+  "delete": ["<prompt_id>"]
+}
+```
+
+- 调用 `POST /queue` 成功后，必须再次检查 `/queue` 或模块内映射，确认目标 `prompt_id` 已不在待执行队列中，才能将任务置为 `CANCELLED`
+- 如果任务在删除前已从 `QUEUED` 转入 `RUNNING`，则必须降级为执行 `POST /interrupt`，不能仍按“排队取消成功”处理
 
 ### 18.2 重试策略
 
@@ -532,11 +560,70 @@ freeMemory(): Promise<void>
 - `PathResolver`：负责 Windows 和 Linux 的路径解析、目录映射和相对引用生成
 - `WorkflowBinder`：根据模板将业务参数绑定到节点输入
 - `JobMonitor`：维护状态机，消费 WebSocket 消息
-- `ResultCollector`：根据 `prompt_id`、`output_prefix` 定位结果文件
+- `ResultCollector`：优先根据历史结果中的输出元数据定位文件，并在必要时结合 `prompt_id`、`output_prefix` 做兜底查找
 
-## 20. 推荐时序
+## 20. 与当前项目集成建议
 
-### 20.1 标准提交流程
+本节针对当前 `web_demo` 仓库的真实结构补充落位约束，避免通信规范与现有代码体系脱节。
+
+### 20.1 后端落位
+
+推荐新增以下实现位置：
+
+- `backend/app/services/comfyui_comm/`
+- `backend/app/services/comfyui_comm/server_client.py`
+- `backend/app/services/comfyui_comm/input_stager.py`
+- `backend/app/services/comfyui_comm/path_resolver.py`
+- `backend/app/services/comfyui_comm/workflow_binder.py`
+- `backend/app/services/comfyui_comm/job_monitor.py`
+- `backend/app/services/comfyui_comm/result_collector.py`
+
+推荐原因：
+
+- 当前仓库的业务执行层已集中在 `backend/app/services/`
+- 该目录下已有 `prompt_generator.py`、`video_prompt_generator.py`、`video_clip_service.py` 等服务模块，ComfyUI 通信模块放在同层最符合现有结构
+
+### 20.2 配置落位
+
+当前项目已有 `backend/api_config.json` 和多份 prompt 配置文件。ComfyUI 通信配置建议单独维护，推荐新增：
+
+- `backend/comfyui_comm_config.json`
+
+不建议直接混入现有 `api_config.json`，原因如下：
+
+- 当前 `api_config.json` 以 `image`、`image_edit`、`video` 三个 Prompt 模块为中心
+- ComfyUI 通信配置包含目录、路径风格、临时目录、工作流模板目录等运行时基础设施信息，语义上与上游 Prompt API 配置不同
+- 单独拆文件更便于后续 Windows / Linux 双环境切换与排障
+
+### 20.3 任务系统集成
+
+当前项目已经在 `backend/app/main.py` 中提供 `JobStore` 和统一的 `/api/jobs/{jobId}` 轮询机制。ComfyUI 模块接入时，建议：
+
+- 继续复用现有 `JobStore`
+- 新增任务类型，例如 `comfy_video`
+- 在 `JobState` 基础上补充 `prompt_id`、`current_node`、`queue_remaining`、`result_path`、`retry_count` 等字段
+- 前端继续沿用现有轮询模式，不要求在第一版引入浏览器侧 WebSocket
+
+### 20.4 API 集成
+
+推荐新增或扩展以下后端接口：
+
+- `GET /api/comfy/health`
+- `POST /api/comfy/run`
+- `POST /api/comfy/cancel`
+- `POST /api/comfy/retry`
+
+以及继续复用：
+
+- `GET /api/jobs/{jobId}`
+- `GET /api/jobs/{jobId}/files`
+- `POST /api/jobs/{jobId}/open-output`
+
+这样可以保持当前项目“后端维护任务状态，前端轮询展示”的一致体验。
+
+## 21. 推荐时序
+
+### 21.1 标准提交流程
 
 1. App 上层生成任务对象
 2. 通信模块执行 `health()` 或复用既有健康状态
@@ -549,7 +636,7 @@ freeMemory(): Promise<void>
 9. 通信模块从 `output` 目录回收最终视频
 10. 通信模块向 App 上层返回结果
 
-### 20.2 Mermaid 时序图
+### 21.2 Mermaid 时序图
 
 ```mermaid
 sequenceDiagram
@@ -574,7 +661,7 @@ sequenceDiagram
     Comm-->>App: output_path / status
 ```
 
-## 21. 安全与实现约束
+## 22. 安全与实现约束
 
 - 通信模块不得执行工作流图结构的动态拼装，仅允许对白名单节点赋值
 - 所有输入文件在投递前必须完成存在性校验
@@ -585,9 +672,9 @@ sequenceDiagram
 - 模块不得在代码中写死 Windows 专属盘符路径
 - 模块不得假设 Linux 固定安装目录，ComfyUI 根目录应可配置
 
-## 22. 平台兼容要求
+## 23. 平台兼容要求
 
-### 22.1 配置项要求
+### 23.1 配置项要求
 
 通信模块应至少支持以下可配置项：
 
@@ -607,7 +694,7 @@ sequenceDiagram
 - `temp_dir`：临时工作目录
 - `path_style`：可选 `windows` 或 `linux`，默认由运行平台自动推断
 
-### 22.2 推荐配置示例
+### 23.2 推荐配置示例
 
 Windows：
 
@@ -635,7 +722,7 @@ Linux：
 }
 ```
 
-### 22.3 实现建议
+### 23.3 实现建议
 
 - Windows 和 Linux 共用同一套任务接口定义
 - 文件复制、目录创建、路径拼接必须通过标准库完成
@@ -644,7 +731,7 @@ Linux：
 - 所有模板中的文件引用统一使用相对引用格式
 - 结果回收时通过配置目录和逻辑前缀组合定位文件
 
-## 23. 测试建议
+## 24. 测试建议
 
 建议至少覆盖以下测试用例：
 
@@ -655,16 +742,19 @@ Linux：
 - 输入文件不存在
 - 工作流模板缺失
 - ComfyUI 服务未启动
+- 请求中显式传入 `prompt_id` 且与响应不一致
 - WebSocket 中途断开并重连
+- WebSocket 收到二进制帧且模块可安全忽略
 - 输出视频未生成
 - 任务超时
 - 用户主动取消
+- 排队中任务通过 `POST /queue` 成功删除
 - 重试成功
 - Windows 环境下路径复制与回收成功
 - Linux 环境下路径复制与回收成功
 - Windows 与 Linux 配置切换后逻辑路径保持一致
 
-## 24. 结论
+## 25. 结论
 
 本模块的核心职责是将本地 App 生成的批量视频任务，转换为 ComfyUI 可执行的 API 工作流请求，并通过官方提供的 HTTP 与 WebSocket 机制完成提交、监听与结果回收。
 
@@ -681,7 +771,7 @@ Linux：
 
 本文档中的通信设计同时适用于 Windows 和 Linux。两端共用同一套接口和任务模型，仅在目录配置、路径解析和权限处理层面做平台适配。
 
-## 25. 参考文档
+## 26. 参考文档
 
 - [ComfyUI Server 概述](https://docs.comfy.org/zh/development/comfyui-server/comms_overview)
 - [ComfyUI API 示例](https://docs.comfy.org/zh/development/comfyui-server/api-examples)
