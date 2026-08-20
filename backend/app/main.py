@@ -1,8 +1,11 @@
 from __future__ import annotations
 
 import json
+import logging
+import mimetypes
 import os
 import shutil
+import sqlite3
 import subprocess
 import sys
 import threading
@@ -23,15 +26,26 @@ from web_demo.backend.app.core.config import (  # noqa: E402
     IMAGE_EDIT_PROMPT_KIND,
     VIDEO_PROMPT_KIND,
     api_config_path,
+    comfy_config_path,
     default_output_root,
     load_api_config,
+    load_comfy_config,
     load_defaults,
     load_prompt_config,
     project_relative_path_text,
     prompt_config_path,
     resolve_output_path,
     save_api_config,
+    save_comfy_config,
     save_prompt_config,
+)
+from web_demo.backend.app.services.comfyui_comm.path_resolver import resolve_workflow_manifest_dir  # noqa: E402
+from web_demo.backend.app.services.comfyui_comm import (  # noqa: E402
+    COMFY_JOB_KIND,
+    cancel_comfy_job,
+    comfy_health,
+    list_comfy_templates,
+    run_comfy_job,
 )
 from web_demo.backend.app.services.prompt_generator import run_image_generation  # noqa: E402
 from web_demo.backend.app.services.image_edit_prompt_generator import run_image_edit_generation  # noqa: E402
@@ -42,10 +56,18 @@ from web_demo.backend.app.services.video_clip_service import (  # noqa: E402
 )
 from web_demo.backend.app.services.video_prompt_generator import run_video_generation  # noqa: E402
 from web_demo.backend.app.utils.file_writer import ensure_dir  # noqa: E402
+from web_demo.backend.app.utils.logging_utils import (  # noqa: E402
+    get_job_log_path,
+    get_job_logger,
+    setup_logging,
+)
 
 
 FRONTEND_DIR = Path(__file__).resolve().parents[2] / "frontend"
 DEFAULTS = load_defaults()
+APP_LOGGER = logging.getLogger("web_demo.app")
+HTTP_LOGGER = logging.getLogger("web_demo.http")
+JOB_DATABASE_PATH = Path(__file__).resolve().parents[2] / "jobs.sqlite3"
 
 
 @dataclass
@@ -57,22 +79,168 @@ class JobState:
     total: int = 0
     logs: list[str] = field(default_factory=list)
     outputs: list[dict[str, Any]] = field(default_factory=list)
+    failures: list[dict[str, Any]] = field(default_factory=list)
     output_dir: str = ""
     error: str = ""
+    meta: dict[str, Any] = field(default_factory=dict)
+    log_file: str = ""
     created_at: float = field(default_factory=time.time)
     started_at: float = 0.0
     finished_at: float = 0.0
 
 
+def _infer_log_level(message: str) -> int:
+    normalized = str(message or "").strip().lower()
+    if not normalized:
+        return logging.INFO
+    if normalized.startswith(("failed", "error", "exception", "traceback", "timed out")):
+        return logging.ERROR
+    if normalized.startswith(("warn", "warning", "reminder")):
+        return logging.WARNING
+    return logging.INFO
+
+
 class JobStore:
-    def __init__(self) -> None:
+    def __init__(self, database_path: Path = JOB_DATABASE_PATH) -> None:
         self._lock = threading.Lock()
         self._jobs: dict[str, JobState] = {}
+        self._database_path = database_path
+        self._initialize_database()
+        self._restore_jobs()
+
+    def _connect(self) -> sqlite3.Connection:
+        connection = sqlite3.connect(self._database_path, timeout=30)
+        connection.row_factory = sqlite3.Row
+        return connection
+
+    def _initialize_database(self) -> None:
+        self._database_path.parent.mkdir(parents=True, exist_ok=True)
+        with self._connect() as connection:
+            connection.execute("PRAGMA journal_mode=WAL")
+            connection.execute(
+                """
+                CREATE TABLE IF NOT EXISTS jobs (
+                    id TEXT PRIMARY KEY,
+                    kind TEXT NOT NULL,
+                    status TEXT NOT NULL,
+                    progress INTEGER NOT NULL,
+                    total INTEGER NOT NULL,
+                    logs_json TEXT NOT NULL,
+                    outputs_json TEXT NOT NULL,
+                    failures_json TEXT NOT NULL,
+                    output_dir TEXT NOT NULL,
+                    error TEXT NOT NULL,
+                    meta_json TEXT NOT NULL,
+                    log_file TEXT NOT NULL,
+                    created_at REAL NOT NULL,
+                    started_at REAL NOT NULL,
+                    finished_at REAL NOT NULL
+                )
+                """
+            )
+
+    @staticmethod
+    def _decode_json(value: str, fallback: Any) -> Any:
+        try:
+            decoded = json.loads(value)
+        except (TypeError, json.JSONDecodeError):
+            return fallback
+        return decoded if isinstance(decoded, type(fallback)) else fallback
+
+    def _restore_jobs(self) -> None:
+        with self._connect() as connection:
+            rows = connection.execute("SELECT * FROM jobs ORDER BY created_at").fetchall()
+
+        restored: dict[str, JobState] = {}
+        interrupted_ids: list[str] = []
+        active_statuses = {"queued", "running"}
+        for row in rows:
+            job = JobState(
+                id=str(row["id"]),
+                kind=str(row["kind"]),
+                status=str(row["status"]),
+                progress=int(row["progress"]),
+                total=int(row["total"]),
+                logs=self._decode_json(row["logs_json"], []),
+                outputs=self._decode_json(row["outputs_json"], []),
+                failures=self._decode_json(row["failures_json"], []),
+                output_dir=str(row["output_dir"]),
+                error=str(row["error"]),
+                meta=self._decode_json(row["meta_json"], {}),
+                log_file=str(row["log_file"]),
+                created_at=float(row["created_at"]),
+                started_at=float(row["started_at"]),
+                finished_at=float(row["finished_at"]),
+            )
+            if job.status in active_statuses:
+                job.status = "failed"
+                job.error = "The application stopped before this task finished."
+                job.finished_at = time.time()
+                job.logs.append("Recovered after restart: marked failed because the worker is no longer running.")
+                interrupted_ids.append(job.id)
+            restored[job.id] = job
+
+        with self._lock:
+            self._jobs = restored
+        for job_id in interrupted_ids:
+            self._persist(self._jobs[job_id])
+
+    def _persist(self, job: JobState) -> None:
+        payload = (
+            job.id,
+            job.kind,
+            job.status,
+            job.progress,
+            job.total,
+            json.dumps(job.logs, ensure_ascii=False, default=str),
+            json.dumps(job.outputs, ensure_ascii=False, default=str),
+            json.dumps(job.failures, ensure_ascii=False, default=str),
+            job.output_dir,
+            job.error,
+            json.dumps(job.meta, ensure_ascii=False, default=str),
+            job.log_file,
+            job.created_at,
+            job.started_at,
+            job.finished_at,
+        )
+        with self._connect() as connection:
+            connection.execute(
+                """
+                INSERT INTO jobs (
+                    id, kind, status, progress, total, logs_json, outputs_json, failures_json,
+                    output_dir, error, meta_json, log_file, created_at, started_at, finished_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT(id) DO UPDATE SET
+                    kind = excluded.kind,
+                    status = excluded.status,
+                    progress = excluded.progress,
+                    total = excluded.total,
+                    logs_json = excluded.logs_json,
+                    outputs_json = excluded.outputs_json,
+                    failures_json = excluded.failures_json,
+                    output_dir = excluded.output_dir,
+                    error = excluded.error,
+                    meta_json = excluded.meta_json,
+                    log_file = excluded.log_file,
+                    created_at = excluded.created_at,
+                    started_at = excluded.started_at,
+                    finished_at = excluded.finished_at
+                """,
+                payload,
+            )
 
     def create(self, *, kind: str, total: int) -> JobState:
-        job = JobState(id=uuid.uuid4().hex[:12], kind=kind, total=total)
+        job_id = uuid.uuid4().hex[:12]
+        job = JobState(
+            id=job_id,
+            kind=kind,
+            total=total,
+            log_file=str(get_job_log_path(job_id)),
+        )
         with self._lock:
             self._jobs[job.id] = job
+            self._persist(job)
+        get_job_logger(job.id, kind).info("Job created. kind=%s total=%s log_file=%s", kind, total, job.log_file)
         return job
 
     def get(self, job_id: str) -> JobState | None:
@@ -82,17 +250,65 @@ class JobStore:
     def update(self, job_id: str, **changes: Any) -> JobState:
         with self._lock:
             job = self._jobs[job_id]
+            previous_status = job.status
+            previous_error = job.error
+            previous_output_dir = job.output_dir
             for key, value in changes.items():
                 setattr(job, key, value)
-            return job
+            kind = job.kind
+            new_status = job.status
+            new_error = job.error
+            new_output_dir = job.output_dir
+            self._persist(job)
+        job_logger = get_job_logger(job_id, kind)
+        if "status" in changes and new_status != previous_status:
+            job_logger.info("Status changed: %s -> %s", previous_status, new_status)
+        if "error" in changes and new_error and new_error != previous_error:
+            job_logger.error("Job error: %s", new_error)
+        if "output_dir" in changes and new_output_dir and new_output_dir != previous_output_dir:
+            job_logger.info("Output directory: %s", new_output_dir)
+        return job
 
-    def append_log(self, job_id: str, message: str) -> None:
+    def append_log(self, job_id: str, message: str, level: int | None = None) -> None:
+        text = str(message or "").strip()
+        if not text:
+            return
         with self._lock:
-            self._jobs[job_id].logs.append(message)
+            job = self._jobs[job_id]
+            job.logs.append(text)
+            kind = job.kind
+            self._persist(job)
+        get_job_logger(job_id, kind).log(level if level is not None else _infer_log_level(text), text)
 
     def replace_outputs(self, job_id: str, outputs: list[dict[str, Any]]) -> None:
         with self._lock:
-            self._jobs[job_id].outputs = outputs
+            job = self._jobs[job_id]
+            job.outputs = outputs
+            self._persist(job)
+
+    def replace_failures(self, job_id: str, failures: list[dict[str, Any]]) -> None:
+        with self._lock:
+            job = self._jobs[job_id]
+            job.failures = failures
+            self._persist(job)
+
+    def merge_meta(self, job_id: str, **changes: Any) -> JobState:
+        with self._lock:
+            job = self._jobs[job_id]
+            merged = dict(job.meta)
+            for key, value in changes.items():
+                if key == "meta" and isinstance(value, dict):
+                    merged.update(value)
+                else:
+                    merged[key] = value
+            job.meta = merged
+            self._persist(job)
+            return job
+
+    def has_active_jobs(self) -> bool:
+        terminal_statuses = {"completed", "partial", "failed", "cancelled", "timeout"}
+        with self._lock:
+            return any(job.status not in terminal_statuses for job in self._jobs.values())
 
 
 STORE = JobStore()
@@ -170,6 +386,20 @@ def text_response(
     handler.wfile.write(data)
 
 
+def bytes_response(
+    handler: BaseHTTPRequestHandler,
+    status: int,
+    content: bytes,
+    content_type: str = "application/octet-stream",
+) -> None:
+    handler.send_response(status)
+    handler.send_header("Content-Type", content_type)
+    handler.send_header("Content-Length", str(len(content)))
+    handler.send_header("Cache-Control", "no-store")
+    handler.end_headers()
+    handler.wfile.write(content)
+
+
 def read_body_json(handler: BaseHTTPRequestHandler) -> dict[str, Any]:
     length = int(handler.headers.get("Content-Length", "0"))
     body = handler.rfile.read(length) if length else b"{}"
@@ -177,6 +407,7 @@ def read_body_json(handler: BaseHTTPRequestHandler) -> dict[str, Any]:
 
 
 def open_folder(path: Path) -> None:
+    APP_LOGGER.info("Opening folder: %s", path)
     if hasattr(os, "startfile"):
         os.startfile(str(path))
         return
@@ -207,7 +438,8 @@ def start_browser_session_reaper(server: ThreadingHTTPServer) -> None:
         while True:
             time.sleep(SESSION_SWEEP_INTERVAL_SECONDS)
             snapshot = BROWSER_SESSIONS.snapshot(SESSION_HEARTBEAT_TIMEOUT_SECONDS)
-            if snapshot["had_browser_session"] and snapshot["active_count"] == 0:
+            if snapshot["had_browser_session"] and snapshot["active_count"] == 0 and not STORE.has_active_jobs():
+                APP_LOGGER.info("No active browser sessions and no active jobs. Shutting down server.")
                 server.shutdown()
                 return
 
@@ -248,26 +480,35 @@ def _start_job_worker(
 ) -> JobState:
     STORE.update(job.id, status="running", started_at=time.time())
 
+    def _first_failure_message(failures: list[dict[str, Any]]) -> str:
+        if not failures:
+            return ""
+        first = failures[0] if isinstance(failures[0], dict) else {}
+        return str(first.get("message") or first.get("error") or "").strip()
+
     def worker() -> None:
         try:
             result = runner(job)
             final_total = int(result.get("total") or total)
             STORE.replace_outputs(job.id, result["items"])
-            status = "completed" if result["items"] or not result["failures"] else "failed"
+            STORE.replace_failures(job.id, result["failures"])
+            status = str(result.get("status") or ("completed" if result["items"] or not result["failures"] else "failed"))
             STORE.update(
                 job.id,
                 status=status,
                 progress=final_total,
                 total=final_total,
                 output_dir=result["output_dir"],
+                error=str(result.get("error") or _first_failure_message(result["failures"]) or ""),
                 finished_at=time.time(),
             )
             if result["failures"]:
-                STORE.append_log(job.id, f"Failed items: {len(result['failures'])}")
+                STORE.append_log(job.id, f"Failed items: {len(result['failures'])}", level=logging.WARNING)
             STORE.append_log(job.id, f"Done. Output: {result['output_dir']}")
         except Exception as exc:
             STORE.update(job.id, status="failed", error=str(exc), finished_at=time.time())
-            STORE.append_log(job.id, f"Failed: {exc}")
+            get_job_logger(job.id, job.kind).exception("Job worker crashed.")
+            STORE.append_log(job.id, f"Failed: {exc}", level=logging.ERROR)
 
     threading.Thread(target=worker, daemon=True).start()
     return job
@@ -285,6 +526,7 @@ def start_image_job(payload: dict[str, Any]) -> JobState:
     )
     ensure_dir(output_root)
     job = STORE.create(kind=IMAGE_PROMPT_KIND, total=len(images))
+    get_job_logger(job.id, job.kind).info("Starting image prompt job. items=%s output_root=%s", len(images), output_root)
 
     def runner(job_state: JobState) -> dict[str, Any]:
         return run_image_generation(
@@ -315,6 +557,7 @@ def start_image_edit_job(payload: dict[str, Any]) -> JobState:
     )
     ensure_dir(output_root)
     job = STORE.create(kind=IMAGE_EDIT_PROMPT_KIND, total=len(images))
+    get_job_logger(job.id, job.kind).info("Starting image edit prompt job. items=%s output_root=%s", len(images), output_root)
 
     def runner(job_state: JobState) -> dict[str, Any]:
         return run_image_edit_generation(
@@ -346,6 +589,7 @@ def start_video_job(payload: dict[str, Any]) -> JobState:
     )
     ensure_dir(output_root)
     job = STORE.create(kind=VIDEO_PROMPT_KIND, total=len(videos))
+    get_job_logger(job.id, job.kind).info("Starting video prompt job. items=%s output_root=%s", len(videos), output_root)
 
     def runner(job_state: JobState) -> dict[str, Any]:
         return run_video_generation(
@@ -366,6 +610,7 @@ def start_video_job(payload: dict[str, Any]) -> JobState:
 
 def start_video_clip_job(payload: dict[str, Any]) -> JobState:
     job = STORE.create(kind="video_clip", total=0)
+    get_job_logger(job.id, job.kind).info("Starting video clip job.")
 
     def runner(job_state: JobState) -> dict[str, Any]:
         return run_video_clip_job(
@@ -382,11 +627,106 @@ def start_video_clip_job(payload: dict[str, Any]) -> JobState:
     return _start_job_worker(job=job, total=0, runner=runner)
 
 
+def start_comfy_generation_job(payload: dict[str, Any]) -> JobState:
+    job = STORE.create(kind=COMFY_JOB_KIND, total=100)
+    STORE.merge_meta(job.id, original_payload=payload)
+    get_job_logger(job.id, job.kind).info(
+        "Starting ComfyUI batch job. csv_path=%s template_key=%s",
+        str(payload.get("csvPath") or "").strip(),
+        str(payload.get("templateKey") or "").strip(),
+    )
+
+    def update_job(job_id: str, **changes: Any) -> None:
+        meta = changes.pop("meta", None)
+        if meta and isinstance(meta, dict):
+            STORE.merge_meta(job_id, meta=meta)
+        if changes:
+            STORE.update(job_id, **changes)
+
+    def runner(job_state: JobState) -> dict[str, Any]:
+        try:
+            return run_comfy_job(
+                job_id=job_state.id,
+                payload=payload,
+                log=lambda message: STORE.append_log(job_state.id, message),
+                progress=lambda current, total: STORE.update(job_state.id, progress=current, total=total),
+                update_job=lambda **changes: update_job(job_state.id, **changes),
+            )
+        except TimeoutError as exc:
+            STORE.append_log(job_state.id, f"Timed out: {exc}", level=logging.ERROR)
+            return {
+                "status": "timeout",
+                "job_id": job_state.id,
+                "output_dir": "",
+                "items": [],
+                "failures": [],
+                "total": 100,
+            }
+
+    return _start_job_worker(job=job, total=100, runner=runner)
+
+
+def _job_output_files(job: JobState) -> list[dict[str, str]]:
+    files: list[dict[str, str]] = []
+    if job.kind == COMFY_JOB_KIND and job.outputs:
+        seen: set[str] = set()
+        for item in job.outputs:
+            path_text = str(item.get("path") or "").strip()
+            if not path_text:
+                continue
+            path = Path(path_text)
+            if not path.exists() or not path.is_file():
+                continue
+            if path.name in seen:
+                continue
+            seen.add(path.name)
+            files.append({"name": path.name, "url": f"/api/jobs/{job.id}/files/{path.name}"})
+        if files:
+            return files
+
+    if job.output_dir:
+        for file_path in sorted(Path(job.output_dir).glob("*")):
+            if file_path.is_file():
+                files.append(
+                    {
+                        "name": file_path.name,
+                        "url": f"/api/jobs/{job.id}/files/{file_path.name}",
+                    }
+                )
+    return files
+
+
+def _resolve_job_output_file(job: JobState, filename: str) -> Path | None:
+    if job.kind == COMFY_JOB_KIND and job.outputs:
+        for item in job.outputs:
+            path_text = str(item.get("path") or "").strip()
+            if not path_text:
+                continue
+            path = Path(path_text)
+            if path.name == filename and path.exists() and path.is_file():
+                return path
+    if not job.output_dir:
+        return None
+    file_path = Path(job.output_dir) / filename
+    if file_path.exists() and file_path.is_file():
+        return file_path
+    return None
+
+
+class LoggedThreadingHTTPServer(ThreadingHTTPServer):
+    def handle_error(self, request: Any, client_address: tuple[str, int]) -> None:
+        APP_LOGGER.exception("Unhandled request error. client=%s:%s", client_address[0], client_address[1])
+
+
 class DemoHandler(BaseHTTPRequestHandler):
     server_version = "PromptToolDemo/0.2"
 
     def log_message(self, format: str, *args: Any) -> None:  # noqa: A003
-        return
+        try:
+            message = format % args
+        except Exception:
+            message = format
+        HTTP_LOGGER.info("%s:%s - %s", self.client_address[0], self.client_address[1], message)
 
     def do_OPTIONS(self) -> None:
         self.send_response(HTTPStatus.NO_CONTENT)
@@ -436,6 +776,34 @@ class DemoHandler(BaseHTTPRequestHandler):
         if path == "/api/clip/presets":
             return json_response(self, HTTPStatus.OK, {"presets": list_clip_presets()})
 
+        if path == "/api/comfy/config":
+            return json_response(
+                self,
+                HTTPStatus.OK,
+                {
+                    "path": project_relative_path_text(comfy_config_path()),
+                    "config": load_comfy_config(),
+                },
+            )
+
+        if path == "/api/comfy/templates":
+            config = load_comfy_config()
+            return json_response(
+                self,
+                HTTPStatus.OK,
+                {
+                    "path": project_relative_path_text(resolve_workflow_manifest_dir(config)),
+                    "templates": list_comfy_templates(config),
+                },
+            )
+
+        if path == "/api/comfy/health":
+            try:
+                payload = comfy_health(load_comfy_config())
+            except Exception as exc:
+                return json_response(self, HTTPStatus.SERVICE_UNAVAILABLE, {"online": False, "error": str(exc)})
+            return json_response(self, HTTPStatus.OK, payload)
+
         if path == "/api/prompt-config":
             return json_response(self, HTTPStatus.OK, _prompt_config_payload(IMAGE_PROMPT_KIND))
         if path == f"/api/prompt-config/{IMAGE_PROMPT_KIND}":
@@ -463,17 +831,7 @@ class DemoHandler(BaseHTTPRequestHandler):
             job = STORE.get(job_id)
             if not job:
                 return json_response(self, HTTPStatus.NOT_FOUND, {"error": "Job not found"})
-            files = []
-            if job.output_dir:
-                for file_path in sorted(Path(job.output_dir).glob("*")):
-                    if file_path.is_file():
-                        files.append(
-                            {
-                                "name": file_path.name,
-                                "url": f"/api/jobs/{job_id}/files/{file_path.name}",
-                            }
-                        )
-            return json_response(self, HTTPStatus.OK, {"files": files})
+            return json_response(self, HTTPStatus.OK, {"files": _job_output_files(job)})
 
         if path.startswith("/api/jobs/") and "/files/" in path:
             parts = path.split("/")
@@ -484,17 +842,14 @@ class DemoHandler(BaseHTTPRequestHandler):
                 return json_response(self, HTTPStatus.NOT_FOUND, {"error": "Job not found"})
             if not job.output_dir:
                 return json_response(self, HTTPStatus.NOT_FOUND, {"error": "Output directory not ready"})
-            file_path = Path(job.output_dir) / filename
-            if not file_path.exists():
+            file_path = _resolve_job_output_file(job, filename)
+            if not file_path:
                 return json_response(self, HTTPStatus.NOT_FOUND, {"error": "File not found"})
-            content_type = "application/octet-stream"
-            if file_path.suffix == ".json":
-                content_type = "application/json; charset=utf-8"
-            elif file_path.suffix == ".txt":
-                content_type = "text/plain; charset=utf-8"
-            elif file_path.suffix == ".csv":
-                content_type = "text/csv; charset=utf-8"
-            return text_response(self, HTTPStatus.OK, file_path.read_text(encoding="utf-8"), content_type)
+            guessed_type, _ = mimetypes.guess_type(str(file_path))
+            content_type = guessed_type or "application/octet-stream"
+            if file_path.suffix.lower() in {".json", ".txt", ".csv", ".md"}:
+                return text_response(self, HTTPStatus.OK, file_path.read_text(encoding="utf-8"), f"{content_type}; charset=utf-8")
+            return bytes_response(self, HTTPStatus.OK, file_path.read_bytes(), content_type)
 
         if path.startswith("/api/jobs/"):
             job_id = path.split("/")[3]
@@ -514,6 +869,89 @@ class DemoHandler(BaseHTTPRequestHandler):
                 return json_response(self, HTTPStatus.BAD_REQUEST, {"error": "Missing clip preset"})
             job = start_video_clip_job(payload)
             return json_response(self, HTTPStatus.ACCEPTED, {"jobId": job.id, "job": job_snapshot(job)})
+
+        if path == "/api/comfy/config":
+            payload = read_body_json(self)
+            normalized = save_comfy_config(payload.get("config") or {})
+            return json_response(
+                self,
+                HTTPStatus.OK,
+                {
+                    "ok": True,
+                    "path": project_relative_path_text(comfy_config_path()),
+                    "config": normalized,
+                },
+            )
+
+        if path == "/api/comfy/run":
+            payload = read_body_json(self)
+            if not str(payload.get("csvPath") or "").strip():
+                return json_response(self, HTTPStatus.BAD_REQUEST, {"error": "Please provide a CSV path."})
+            job = start_comfy_generation_job(payload)
+            return json_response(self, HTTPStatus.ACCEPTED, {"jobId": job.id, "job": job_snapshot(job)})
+
+        if path == "/api/comfy/cancel":
+            payload = read_body_json(self)
+            job_id = str(payload.get("jobId") or "").strip()
+            if not job_id:
+                return json_response(self, HTTPStatus.BAD_REQUEST, {"error": "Missing jobId"})
+            job = STORE.get(job_id)
+            if not job:
+                return json_response(self, HTTPStatus.NOT_FOUND, {"error": "Job not found"})
+            try:
+                result = cancel_comfy_job(job_id, load_comfy_config())
+            except Exception as exc:
+                return json_response(self, HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            STORE.append_log(job_id, result.get("message") or "Cancel requested.")
+            STORE.merge_meta(job_id, cancel_requested=True)
+            return json_response(self, HTTPStatus.OK, {"ok": True, "result": result, "job": job_snapshot(STORE.get(job_id) or job)})
+
+        if path == "/api/comfy/retry":
+            payload = read_body_json(self)
+            job_id = str(payload.get("jobId") or "").strip()
+            failed_only = bool(payload.get("failedOnly", False))
+            skip_succeeded = bool(payload.get("skipSucceeded", False))
+            if not job_id:
+                return json_response(self, HTTPStatus.BAD_REQUEST, {"error": "Missing jobId"})
+            if failed_only and skip_succeeded:
+                return json_response(self, HTTPStatus.BAD_REQUEST, {"error": "Choose either failedOnly or skipSucceeded, not both."})
+            job = STORE.get(job_id)
+            if not job:
+                return json_response(self, HTTPStatus.NOT_FOUND, {"error": "Job not found"})
+            original_payload = job.meta.get("original_payload") if isinstance(job.meta, dict) else None
+            if not isinstance(original_payload, dict):
+                return json_response(self, HTTPStatus.BAD_REQUEST, {"error": "The original ComfyUI payload is not available for retry."})
+            retry_payload = dict(original_payload)
+            if failed_only:
+                failed_rows = sorted(
+                    {
+                        int(item.get("row_index"))
+                        for item in (job.failures or [])
+                        if isinstance(item, dict) and item.get("row_index") is not None
+                    }
+                )
+                if not failed_rows:
+                    return json_response(self, HTTPStatus.BAD_REQUEST, {"error": "There are no failed rows available for retry."})
+                retry_payload["rowIndices"] = failed_rows
+            if skip_succeeded:
+                selected_rows = job.meta.get("selected_row_indices") if isinstance(job.meta, dict) else None
+                row_count = int(job.meta.get("row_count") or 0) if isinstance(job.meta, dict) else 0
+                if isinstance(selected_rows, list) and selected_rows:
+                    base_rows = {int(item) for item in selected_rows}
+                else:
+                    base_rows = set(range(1, row_count + 1)) if row_count > 0 else set()
+                succeeded_rows = {
+                    int(item.get("row_index"))
+                    for item in (job.outputs or [])
+                    if isinstance(item, dict) and item.get("row_index") is not None
+                }
+                remaining_rows = sorted(base_rows - succeeded_rows)
+                if not remaining_rows:
+                    return json_response(self, HTTPStatus.BAD_REQUEST, {"error": "There are no remaining rows to resume."})
+                retry_payload["rowIndices"] = remaining_rows
+            retry_job = start_comfy_generation_job(retry_payload)
+            STORE.merge_meta(retry_job.id, retry_of=job_id)
+            return json_response(self, HTTPStatus.ACCEPTED, {"jobId": retry_job.id, "job": job_snapshot(retry_job)})
 
         if path in {"/api/generate", f"/api/generate/{IMAGE_PROMPT_KIND}-prompt"}:
             payload = read_body_json(self)
@@ -693,6 +1131,7 @@ class DemoHandler(BaseHTTPRequestHandler):
             session_id = str(payload.get("sessionId") or "").strip()
             if session_id:
                 BROWSER_SESSIONS.close(session_id)
+            APP_LOGGER.info("Shutdown requested by client. session_id=%s", session_id or "unknown")
             json_response(
                 self,
                 HTTPStatus.OK,
@@ -724,21 +1163,27 @@ class DemoHandler(BaseHTTPRequestHandler):
 
 
 def main() -> None:
+    log_paths = setup_logging()
+    APP_LOGGER.info("Application startup. date=2026-08-18 log_dir=%s", log_paths.root_dir)
     ensure_dir(default_output_root())
     ensure_dir(default_output_root(IMAGE_PROMPT_KIND))
     ensure_dir(default_output_root(IMAGE_EDIT_PROMPT_KIND))
     ensure_dir(default_output_root(VIDEO_PROMPT_KIND))
     ensure_dir(Path(__file__).resolve().parents[2] / "uploads")
     load_api_config()
+    comfy_config = load_comfy_config()
+    ensure_dir(resolve_workflow_manifest_dir(comfy_config))
     load_prompt_config(IMAGE_PROMPT_KIND)
     load_prompt_config(IMAGE_EDIT_PROMPT_KIND)
     load_prompt_config(VIDEO_PROMPT_KIND)
-    server = ThreadingHTTPServer(("127.0.0.1", 8000), DemoHandler)
+    server = LoggedThreadingHTTPServer(("127.0.0.1", 8000), DemoHandler)
     start_browser_session_reaper(server)
+    APP_LOGGER.info("Prompt tool demo running at http://127.0.0.1:8000")
     print("Prompt tool demo running at http://127.0.0.1:8000")
     try:
         server.serve_forever()
     except KeyboardInterrupt:
+        APP_LOGGER.info("Server stopped by KeyboardInterrupt.")
         print("\nStopped.")
 
 

@@ -24,13 +24,29 @@ class OpenAICompatibleClient:
         self.timeout = timeout
 
     def chat_with_image(self, system_prompt: str, user_text: str, image_data_url: str) -> LLMResponse:
-        return self.chat_with_media_urls(system_prompt, user_text, [image_data_url])
+        return self.chat_with_media(
+            system_prompt,
+            user_text,
+            [{"kind": "image", "url": image_data_url}],
+        )
 
     def chat_with_media_urls(self, system_prompt: str, user_text: str, media_urls: list[str]) -> LLMResponse:
+        return self.chat_with_media(
+            system_prompt,
+            user_text,
+            [{"kind": "image", "url": media_url} for media_url in media_urls],
+        )
+
+    def chat_with_media(self, system_prompt: str, user_text: str, media_items: list[dict[str, str]]) -> LLMResponse:
         content: list[dict[str, Any]] = [{"type": "text", "text": self._build_prompt_text(system_prompt, user_text)}]
-        for media_url in media_urls:
-            self._validate_media_url(media_url)
-            content.append({"type": "image_url", "image_url": {"url": media_url}})
+        for item in media_items:
+            media_kind = str(item.get("kind") or "image").strip().lower()
+            media_url = str(item.get("url") or "").strip()
+            self._validate_media_url(media_url, media_kind)
+            if media_kind == "video":
+                content.append({"type": "video_url", "video_url": {"url": media_url}})
+            else:
+                content.append({"type": "image_url", "image_url": {"url": media_url}})
 
         url = self.base_url.rstrip("/") + "/chat/completions"
         body = {
@@ -74,14 +90,16 @@ class OpenAICompatibleClient:
         return system_text or user_content
 
     @staticmethod
-    def _validate_media_url(media_url: str) -> None:
+    def _validate_media_url(media_url: str, media_kind: str = "image") -> None:
         text = str(media_url).strip()
         if text.startswith("data:") and ";base64," in text:
             return
         parsed = urlparse(text)
         if parsed.scheme in {"http", "https"} and parsed.netloc:
             return
-        raise RuntimeError("Media input must be a publicly accessible http(s) URL or a base64 data URL.")
+        if media_kind == "video":
+            raise RuntimeError("Video input must be a publicly accessible http(s) URL or a base64 data URL.")
+        raise RuntimeError("Image input must be a publicly accessible http(s) URL or a base64 data URL.")
 
     @staticmethod
     def _extract_text(raw: dict[str, Any]) -> str:

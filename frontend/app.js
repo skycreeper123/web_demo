@@ -11,6 +11,10 @@ const VIEW_META = {
     title: "视频剪辑工作台",
     subtitle: "本地批量裁切与合并。",
   },
+  comfyStudio: {
+    title: "本地 Comfy 通信工作台",
+    subtitle: "连接本机 ComfyUI 并提交工作流。",
+  },
 };
 
 const PROMPT_MODULES = {
@@ -84,6 +88,15 @@ const state = {
     outputs: [],
     pollTimer: null,
   },
+  comfy: {
+    config: null,
+    templates: [],
+    health: null,
+    jobId: "",
+    job: null,
+    outputs: [],
+    pollTimer: null,
+  },
 };
 
 const els = {
@@ -95,8 +108,10 @@ const els = {
   homeView: document.getElementById("homeView"),
   promptStudioView: document.getElementById("promptStudioView"),
   clipStudioView: document.getElementById("clipStudioView"),
+  comfyStudioView: document.getElementById("comfyStudioView"),
   goPromptStudioBtn: document.getElementById("goPromptStudioBtn"),
   goClipStudioBtn: document.getElementById("goClipStudioBtn"),
+  goComfyStudioBtn: document.getElementById("goComfyStudioBtn"),
   promptModuleOverview: document.getElementById("promptModuleOverview"),
   promptModuleTabs: document.getElementById("promptModuleTabs"),
   imageView: document.getElementById("imageView"),
@@ -137,6 +152,7 @@ const els = {
   imageInput: document.getElementById("imageInput"),
   imageDropzone: document.getElementById("imageDropzone"),
   imageFileList: document.getElementById("imageFileList"),
+  imageSourceRootDir: document.getElementById("imageSourceRootDir"),
   imageUrlInput: document.getElementById("imageUrlInput"),
   imageSelectedCount: document.getElementById("imageSelectedCount"),
   imageStatusBadge: document.getElementById("imageStatusBadge"),
@@ -171,6 +187,7 @@ const els = {
   imageEditInput: document.getElementById("imageEditInput"),
   imageEditDropzone: document.getElementById("imageEditDropzone"),
   imageEditFileList: document.getElementById("imageEditFileList"),
+  imageEditSourceRootDir: document.getElementById("imageEditSourceRootDir"),
   imageEditUrlInput: document.getElementById("imageEditUrlInput"),
   imageEditSelectedCount: document.getElementById("imageEditSelectedCount"),
   imageEditStatusBadge: document.getElementById("imageEditStatusBadge"),
@@ -205,10 +222,12 @@ const els = {
   videoInput: document.getElementById("videoInput"),
   videoDropzone: document.getElementById("videoDropzone"),
   videoFileList: document.getElementById("videoFileList"),
+  videoSourceRootDir: document.getElementById("videoSourceRootDir"),
   videoUrlInput: document.getElementById("videoUrlInput"),
   referenceInput: document.getElementById("referenceInput"),
   referenceDropzone: document.getElementById("referenceDropzone"),
   referenceFileList: document.getElementById("referenceFileList"),
+  referenceSourceRootDir: document.getElementById("referenceSourceRootDir"),
   referenceUrlInput: document.getElementById("referenceUrlInput"),
   videoSelectedCount: document.getElementById("videoSelectedCount"),
   referenceSelectedCount: document.getElementById("referenceSelectedCount"),
@@ -242,6 +261,59 @@ const els = {
   openVideoOutputBtn: document.getElementById("openVideoOutputBtn"),
   videoLogBox: document.getElementById("videoLogBox"),
   videoOutputList: document.getElementById("videoOutputList"),
+
+  comfyServerBadge: document.getElementById("comfyServerBadge"),
+  comfyServerMeta: document.getElementById("comfyServerMeta"),
+  comfyTemplateCount: document.getElementById("comfyTemplateCount"),
+  comfyTemplateMeta: document.getElementById("comfyTemplateMeta"),
+  comfyStatusBadge: document.getElementById("comfyStatusBadge"),
+  comfyJobMeta: document.getElementById("comfyJobMeta"),
+  comfyResultCount: document.getElementById("comfyResultCount"),
+  comfyOutputRootValue: document.getElementById("comfyOutputRootValue"),
+  comfyConfigPath: document.getElementById("comfyConfigPath"),
+  comfyBaseUrl: document.getElementById("comfyBaseUrl"),
+  comfyRootDir: document.getElementById("comfyRootDir"),
+  comfyInputDir: document.getElementById("comfyInputDir"),
+  comfyOutputDir: document.getElementById("comfyOutputDir"),
+  comfyTempDir: document.getElementById("comfyTempDir"),
+  comfyPathStyle: document.getElementById("comfyPathStyle"),
+  comfyRequestTimeout: document.getElementById("comfyRequestTimeout"),
+  comfyJobTimeout: document.getElementById("comfyJobTimeout"),
+  comfyPollInterval: document.getElementById("comfyPollInterval"),
+  comfyWorkflowManifestDir: document.getElementById("comfyWorkflowManifestDir"),
+  comfyWsEnabled: document.getElementById("comfyWsEnabled"),
+  reloadComfyConfigBtn: document.getElementById("reloadComfyConfigBtn"),
+  saveComfyConfigBtn: document.getElementById("saveComfyConfigBtn"),
+  checkComfyHealthBtn: document.getElementById("checkComfyHealthBtn"),
+  reloadComfyTemplatesBtn: document.getElementById("reloadComfyTemplatesBtn"),
+  comfyTemplateSelect: document.getElementById("comfyTemplateSelect"),
+  comfyTemplateDescription: document.getElementById("comfyTemplateDescription"),
+  applyComfyTemplateBindingsBtn: document.getElementById("applyComfyTemplateBindingsBtn"),
+  comfyBindingsPreview: document.getElementById("comfyBindingsPreview"),
+  comfyWorkflowType: document.getElementById("comfyWorkflowType"),
+  comfyOutputPrefix: document.getElementById("comfyOutputPrefix"),
+  comfyParamsJson: document.getElementById("comfyParamsJson"),
+  comfyCsvPath: document.getElementById("comfyCsvPath"),
+  comfyImageRootDir: document.getElementById("comfyImageRootDir"),
+  comfyVideoRootDir: document.getElementById("comfyVideoRootDir"),
+  comfyDefaultSeed: document.getElementById("comfyDefaultSeed"),
+  comfyWorkflowJson: document.getElementById("comfyWorkflowJson"),
+  comfyBindingsJson: document.getElementById("comfyBindingsJson"),
+  cancelComfyJobBtn: document.getElementById("cancelComfyJobBtn"),
+  retryComfyJobBtn: document.getElementById("retryComfyJobBtn"),
+  retryFailedComfyJobBtn: document.getElementById("retryFailedComfyJobBtn"),
+  resumePendingComfyJobBtn: document.getElementById("resumePendingComfyJobBtn"),
+  exportComfyFailuresBtn: document.getElementById("exportComfyFailuresBtn"),
+  refreshComfyJobBtn: document.getElementById("refreshComfyJobBtn"),
+  startComfyJobBtn: document.getElementById("startComfyJobBtn"),
+  comfyProgressBar: document.getElementById("comfyProgressBar"),
+  comfyProgressText: document.getElementById("comfyProgressText"),
+  comfyProgressDetail: document.getElementById("comfyProgressDetail"),
+  comfyLogBox: document.getElementById("comfyLogBox"),
+  comfyFailureList: document.getElementById("comfyFailureList"),
+  reloadComfyFilesBtn: document.getElementById("reloadComfyFilesBtn"),
+  openComfyOutputBtn: document.getElementById("openComfyOutputBtn"),
+  comfyOutputList: document.getElementById("comfyOutputList"),
 };
 
 function escapeHtml(text) {
@@ -273,14 +345,17 @@ function normalizeDisplayPath(value) {
   const normalized = text.replaceAll("\\", "/");
   const markers = [
     "output/",
+    "workflow/",
     "backend/",
     "frontend/",
     "uploads/",
     "outputs/",
+    "comfyui_workflows/",
     "image_prompt_config.json",
     "image_edit_prompt_config.json",
     "video_prompt_config.json",
     "api_config.json",
+    "comfyui_comm_config.json",
   ];
 
   for (const marker of markers) {
@@ -458,9 +533,54 @@ function getVideoAndReferenceEntries() {
   const remoteVideos = getVideoRemoteItems();
   const remoteReferences = getReferenceRemoteItems();
   return {
-    videos: remoteVideos.length ? remoteVideos : state.video.videoFiles.map((file) => ({ name: file.name, file })),
-    references: remoteReferences.length ? remoteReferences : state.video.referenceFiles.map((file) => ({ name: file.name, file })),
+    videos: remoteVideos.length
+      ? remoteVideos
+      : state.video.videoFiles.map((file) => ({
+          name: file.name,
+          file,
+          sourcePath: resolveSourcePath(file, els.videoSourceRootDir.value),
+          relativePath: getLocalRelativePath(file),
+        })),
+    references: remoteReferences.length
+      ? remoteReferences
+      : state.video.referenceFiles.map((file) => ({
+          name: file.name,
+          file,
+          sourcePath: resolveSourcePath(file, els.referenceSourceRootDir.value),
+          relativePath: getLocalRelativePath(file),
+        })),
   };
+}
+
+function getLocalSourcePath(file) {
+  return typeof file?.path === "string" ? file.path.trim() : "";
+}
+
+function getLocalRelativePath(file) {
+  return typeof file?.webkitRelativePath === "string" ? file.webkitRelativePath.trim() : "";
+}
+
+function normalizeJoinedPath(rootDir, childPath) {
+  const root = String(rootDir || "").trim().replace(/[\\/]+$/, "");
+  const child = String(childPath || "").trim().replaceAll("\\", "/").replace(/^\/+/, "");
+  if (!root || !child) return "";
+  return `${root}/${child}`;
+}
+
+function resolveSourcePath(file, configuredRootDir) {
+  const directPath = getLocalSourcePath(file);
+  if (directPath) return directPath;
+
+  const relativePath = getLocalRelativePath(file);
+  if (relativePath && configuredRootDir) {
+    return normalizeJoinedPath(configuredRootDir, relativePath);
+  }
+
+  if (configuredRootDir && file?.name) {
+    return normalizeJoinedPath(configuredRootDir, file.name);
+  }
+
+  return "";
 }
 
 function getFileExtension(file) {
@@ -485,10 +605,16 @@ function toReadableJobStatus(status) {
       return "运行中";
     case "completed":
       return "已完成";
+    case "partial":
+      return "部分成功";
     case "failed":
       return "失败";
     case "queued":
       return "排队中";
+    case "cancelled":
+      return "已取消";
+    case "timeout":
+      return "超时";
     default:
       return "待开始";
   }
@@ -581,6 +707,12 @@ function updateViewHeader() {
     return;
   }
 
+  if (state.currentView === "comfyStudio") {
+    els.viewTitle.textContent = VIEW_META.comfyStudio.title;
+    els.viewSubtitle.textContent = VIEW_META.comfyStudio.subtitle;
+    return;
+  }
+
   els.viewTitle.textContent = VIEW_META.home.title;
   els.viewSubtitle.textContent = VIEW_META.home.subtitle;
 }
@@ -600,6 +732,7 @@ function setView(view, moduleKey = state.activePromptModule) {
   els.homeView.hidden = view !== "home";
   els.promptStudioView.hidden = view !== "promptStudio";
   els.clipStudioView.hidden = view !== "clipStudio";
+  els.comfyStudioView.hidden = view !== "comfyStudio";
   els.navBackBtn.disabled = view === "home";
 
   if (view === "promptStudio") {
@@ -851,6 +984,157 @@ function setImageEditLog(lines) {
 function setVideoLog(lines) {
   const normalizedLines = normalizeLogLines(lines);
   els.videoLogBox.textContent = normalizedLines.length ? normalizedLines.join("\n") : "暂无日志";
+}
+
+function setComfyLog(lines) {
+  const normalizedLines = normalizeLogLines(lines);
+  els.comfyLogBox.textContent = normalizedLines.length ? normalizedLines.join("\n") : "暂无日志";
+}
+
+function selectedComfyTemplate() {
+  return state.comfy.templates.find((template) => template.key === els.comfyTemplateSelect.value) || null;
+}
+
+function formatTemplateBindings(template) {
+  if (!template?.bindings || typeof template.bindings !== "object" || Array.isArray(template.bindings)) {
+    return "";
+  }
+  return JSON.stringify(template.bindings, null, 2);
+}
+
+function renderComfyTemplateDescription() {
+  const template = selectedComfyTemplate();
+  els.comfyTemplateDescription.textContent = template
+    ? [
+      template.workflow_type || "未声明类型",
+      template.source_type === "raw_api_workflow" ? "自动识别 API 工作流" : "Manifest 模板",
+      template.bindings_count ? `${template.bindings_count} 个绑定` : "无绑定",
+      template.bindings_inferred ? "含自动推断绑定" : "",
+      template.description || "无描述",
+    ].filter(Boolean).join(" · ")
+    : "当前没有可用模板。你也可以直接在右侧填写 Workflow JSON 与 Bindings JSON。";
+  if (template && !els.comfyWorkflowType.value.trim()) {
+    els.comfyWorkflowType.value = template.workflow_type || "";
+  }
+  const bindingsText = formatTemplateBindings(template);
+  els.comfyBindingsPreview.textContent = bindingsText || "当前模板没有显式 bindings。";
+  els.applyComfyTemplateBindingsBtn.disabled = !bindingsText;
+}
+
+function renderComfyTemplates(data) {
+  state.comfy.templates = data.templates || [];
+  els.comfyTemplateCount.textContent = String(state.comfy.templates.length);
+  els.comfyTemplateMeta.textContent = normalizeDisplayPath(data.path) || "未找到模板目录";
+
+  if (!state.comfy.templates.length) {
+    els.comfyTemplateSelect.innerHTML = `<option value="">无模板，可直接填写 Workflow JSON</option>`;
+    renderComfyTemplateDescription();
+    return;
+  }
+
+  els.comfyTemplateSelect.innerHTML = state.comfy.templates.map((template) => `
+    <option value="${escapeHtml(template.key)}">${escapeHtml(template.source_type === "raw_api_workflow" ? `[自动] ${template.label || template.key}` : (template.label || template.key))}</option>
+  `).join("");
+  renderComfyTemplateDescription();
+}
+
+function renderComfyHealth(data) {
+  state.comfy.health = data || null;
+  const online = Boolean(data?.online);
+  els.comfyServerBadge.textContent = online ? "在线" : "离线";
+  if (!online) {
+    els.comfyServerMeta.textContent = data?.error || "无法连接";
+    return;
+  }
+  const queuePending = Number(data?.queue_pending || 0);
+  const queueRunning = Number(data?.queue_running || 0);
+  const ws = data?.ws || {};
+  const wsText = ws.enabled
+    ? (ws.connected ? "WS 已连接" : "WS 启动中")
+    : "WS 已关闭";
+  els.comfyServerMeta.textContent = `${queuePending} 待执行 / ${queueRunning} 运行中 · ${wsText}`;
+}
+
+function toReadableFailureStage(stage) {
+  return {
+    INPUT_PREPARE: "输入准备",
+    WORKFLOW_BIND: "工作流绑定",
+    SUBMIT: "提交任务",
+    RUNNING: "执行阶段",
+    RESULT_FETCH: "结果回收",
+    TIMEOUT: "任务超时",
+  }[String(stage || "").trim()] || String(stage || "未知阶段");
+}
+
+function renderComfyFailures(failures) {
+  const items = Array.isArray(failures) ? failures : [];
+  if (!items.length) {
+    els.comfyFailureList.classList.add("empty");
+    els.comfyFailureList.textContent = "失败项会显示在这里";
+    return;
+  }
+
+  els.comfyFailureList.classList.remove("empty");
+  els.comfyFailureList.innerHTML = items.map((item) => {
+    const stage = toReadableFailureStage(item.stage);
+    const code = item.error_code || "UNKNOWN";
+    const promptId = item.prompt_id ? ` · Prompt ${escapeHtml(item.prompt_id)}` : "";
+    const retryable = item.retryable ? "可重试" : "需先修正配置";
+    const detail = item.detail ? `<small>${escapeHtml(typeof item.detail === "string" ? item.detail : JSON.stringify(item.detail))}</small>` : "";
+    return `
+      <div class="output-row failure-row">
+        <div>
+          <strong>第 ${escapeHtml(item.row_index)} 行 · ${escapeHtml(item.name || "-")}</strong>
+          <small>${escapeHtml(stage)} · ${escapeHtml(code)}${promptId}</small>
+          <small>${escapeHtml(item.message || "unknown error")}</small>
+          ${detail}
+        </div>
+        <span class="status-pill ${item.retryable ? "status-partial" : "status-missing"}">${escapeHtml(retryable)}</span>
+      </div>
+    `;
+  }).join("");
+}
+
+function renderComfyJob(job) {
+  state.comfy.job = job;
+  const percent = job.total ? Math.round((job.progress / job.total) * 100) : 0;
+  const meta = job.meta || {};
+  const failures = Array.isArray(job.failures) ? job.failures : [];
+  const selectedRowCount = Number(meta.selected_row_count || meta.row_count || job.total || 0);
+  els.comfyProgressBar.style.width = `${percent}%`;
+  els.comfyStatusBadge.textContent = toReadableJobStatus(job.status);
+  els.comfyJobMeta.textContent = job.id
+    ? `Job ${job.id}${meta.prompt_id ? ` · Prompt ${meta.prompt_id}` : ""}${selectedRowCount ? ` · ${job.progress}/${selectedRowCount}` : ""}`
+    : "未运行";
+  els.comfyProgressText.textContent = toReadableJobStatus(job.status);
+  if (job.status === "completed") {
+    els.comfyProgressDetail.textContent = normalizeDisplayPath(meta.result_path || job.output_dir) || "已完成";
+  } else if (job.status === "partial") {
+    const firstFailure = failures[0];
+    const failureText = firstFailure
+      ? `第 ${firstFailure.row_index} 行失败：${firstFailure.message || job.error || "unknown"}`
+      : (job.error || "存在失败项");
+    els.comfyProgressDetail.textContent = `${normalizeDisplayPath(meta.result_path || job.output_dir) || "已有部分结果"} · ${failureText}`;
+  } else if (job.status === "failed") {
+    const firstFailure = failures[0];
+    els.comfyProgressDetail.textContent = firstFailure
+      ? `失败：第 ${firstFailure.row_index} 行 · ${firstFailure.message || job.error || "unknown"}`
+      : `任务失败：${job.error || "unknown"}`;
+  } else if (job.status === "cancelled") {
+    els.comfyProgressDetail.textContent = "任务已取消";
+  } else if (job.status === "timeout") {
+    els.comfyProgressDetail.textContent = "任务超时";
+  } else if (meta.current_node) {
+    els.comfyProgressDetail.textContent = `当前节点：${meta.current_node}`;
+  } else if (meta.queue_pending || meta.queue_running) {
+    els.comfyProgressDetail.textContent = `队列：${meta.queue_pending || 0} 待执行 / ${meta.queue_running || 0} 运行中`;
+  } else {
+    els.comfyProgressDetail.textContent = "等待";
+  }
+  els.comfyOutputRootValue.textContent = normalizeDisplayPath(job.output_dir)
+    || normalizeDisplayPath(els.comfyOutputDir.value.trim())
+    || "未设置";
+  renderComfyFailures(failures);
 }
 
 function getClipPreset(key = state.clip.preset) {
@@ -1234,6 +1518,7 @@ function getImageApiConfigPayload() {
     base_url: els.imageBaseUrl.value.trim(),
     model: els.imageModel.value.trim(),
     output_dir: els.imageOutputDir.value.trim(),
+    source_root_dir: els.imageSourceRootDir.value.trim(),
     use_mock: els.imageUseMock.checked,
     overwrite: els.imageOverwrite.checked,
   };
@@ -1245,6 +1530,7 @@ function getImageEditApiConfigPayload() {
     base_url: els.imageEditBaseUrl.value.trim(),
     model: els.imageEditModel.value.trim(),
     output_dir: els.imageEditOutputDir.value.trim(),
+    source_root_dir: els.imageEditSourceRootDir.value.trim(),
     use_mock: els.imageEditUseMock.checked,
     overwrite: els.imageEditOverwrite.checked,
   };
@@ -1256,6 +1542,8 @@ function getVideoApiConfigPayload() {
     base_url: els.videoBaseUrl.value.trim(),
     model: els.videoModel.value.trim(),
     output_dir: els.videoOutputDir.value.trim(),
+    video_source_root_dir: els.videoSourceRootDir.value.trim(),
+    reference_source_root_dir: els.referenceSourceRootDir.value.trim(),
     use_mock: els.videoUseMock.checked,
     overwrite: els.videoOverwrite.checked,
   };
@@ -1268,6 +1556,7 @@ function renderImageApiConfig(data) {
   els.imageBaseUrl.value = data.config?.base_url || "";
   els.imageModel.value = data.config?.model || "";
   els.imageOutputDir.value = normalizeDisplayPath(data.config?.output_dir || "");
+  els.imageSourceRootDir.value = data.config?.source_root_dir || "";
   els.imageUseMock.checked = data.config?.use_mock ?? true;
   els.imageOverwrite.checked = data.config?.overwrite ?? false;
   els.imageApiKey.placeholder = "直接粘贴 API Key";
@@ -1282,6 +1571,7 @@ function renderImageEditApiConfig(data) {
   els.imageEditBaseUrl.value = data.config?.base_url || "";
   els.imageEditModel.value = data.config?.model || "";
   els.imageEditOutputDir.value = normalizeDisplayPath(data.config?.output_dir || "");
+  els.imageEditSourceRootDir.value = data.config?.source_root_dir || "";
   els.imageEditUseMock.checked = data.config?.use_mock ?? true;
   els.imageEditOverwrite.checked = data.config?.overwrite ?? false;
   els.imageEditApiKey.placeholder = "直接粘贴 API Key";
@@ -1296,6 +1586,8 @@ function renderVideoApiConfig(data) {
   els.videoBaseUrl.value = data.config?.base_url || "";
   els.videoModel.value = data.config?.model || "";
   els.videoOutputDir.value = normalizeDisplayPath(data.config?.output_dir || "");
+  els.videoSourceRootDir.value = data.config?.video_source_root_dir || "";
+  els.referenceSourceRootDir.value = data.config?.reference_source_root_dir || "";
   els.videoUseMock.checked = data.config?.use_mock ?? true;
   els.videoOverwrite.checked = data.config?.overwrite ?? false;
   els.videoApiKey.placeholder = "直接粘贴 API Key";
@@ -1381,6 +1673,350 @@ async function saveVideoApiConfig() {
   }
 }
 
+function getComfyConfigPayload() {
+  return {
+    ...(state.comfy.config || {}),
+    comfy_base_url: els.comfyBaseUrl.value.trim(),
+    comfy_root_dir: els.comfyRootDir.value.trim(),
+    comfy_input_dir: els.comfyInputDir.value.trim(),
+    comfy_output_dir: els.comfyOutputDir.value.trim(),
+    temp_dir: els.comfyTempDir.value.trim(),
+    path_style: els.comfyPathStyle.value,
+    request_timeout_sec: Number(els.comfyRequestTimeout.value || 30),
+    job_timeout_sec: Number(els.comfyJobTimeout.value || 1800),
+    poll_interval_sec: Number(els.comfyPollInterval.value || 2),
+    ws_enabled: els.comfyWsEnabled.checked,
+    workflow_manifest_dir: els.comfyWorkflowManifestDir.value.trim(),
+  };
+}
+
+function renderComfyConfig(data) {
+  state.comfy.config = data.config || null;
+  els.comfyConfigPath.textContent = normalizeDisplayPath(data.path) || "未找到配置文件";
+  els.comfyBaseUrl.value = data.config?.comfy_base_url || "http://127.0.0.1:8188";
+  els.comfyRootDir.value = data.config?.comfy_root_dir || "";
+  els.comfyInputDir.value = data.config?.comfy_input_dir || "";
+  els.comfyOutputDir.value = data.config?.comfy_output_dir || "";
+  els.comfyTempDir.value = normalizeDisplayPath(data.config?.temp_dir || "");
+  els.comfyPathStyle.value = data.config?.path_style || "";
+  els.comfyRequestTimeout.value = String(data.config?.request_timeout_sec ?? 30);
+  els.comfyJobTimeout.value = String(data.config?.job_timeout_sec ?? 1800);
+  els.comfyPollInterval.value = String(data.config?.poll_interval_sec ?? 2);
+  els.comfyWsEnabled.checked = data.config?.ws_enabled ?? true;
+  els.comfyWorkflowManifestDir.value = normalizeDisplayPath(data.config?.workflow_manifest_dir || "");
+  els.comfyOutputRootValue.textContent = normalizeDisplayPath(els.comfyOutputDir.value.trim()) || "未设置";
+}
+
+async function loadComfyConfig() {
+  const res = await fetch("/api/comfy/config");
+  const data = await res.json();
+  renderComfyConfig(data);
+}
+
+async function saveComfyConfig() {
+  try {
+    const res = await fetch("/api/comfy/config", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ config: getComfyConfigPayload() }),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      throw new Error(data.error || "保存 ComfyUI 配置失败");
+    }
+    renderComfyConfig(data);
+    alert("ComfyUI 配置已保存");
+  } catch (error) {
+    alert(error.message);
+  }
+}
+
+async function loadComfyTemplates() {
+  const res = await fetch("/api/comfy/templates");
+  const data = await res.json();
+  if (!res.ok) {
+    throw new Error(data.error || "无法读取 ComfyUI 模板");
+  }
+  renderComfyTemplates(data);
+}
+
+async function checkComfyHealth() {
+  try {
+    els.comfyServerBadge.textContent = "检查中";
+    els.comfyServerMeta.textContent = "正在请求 /system_stats 与 /queue";
+    const res = await fetch("/api/comfy/health");
+    const data = await res.json();
+    if (!res.ok) {
+      throw new Error(data.error || "ComfyUI 健康检查失败");
+    }
+    renderComfyHealth(data);
+  } catch (error) {
+    renderComfyHealth({ online: false, error: error.message });
+    alert(error.message);
+  }
+}
+
+function parseComfyParamsJson() {
+  const text = els.comfyParamsJson.value.trim();
+  if (!text) return {};
+  const value = JSON.parse(text);
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    throw new Error("Params JSON 必须是对象。");
+  }
+  return value;
+}
+
+function getComfyRunPayload() {
+  const seedText = els.comfyDefaultSeed.value.trim();
+  return {
+    templateKey: els.comfyTemplateSelect.value,
+    workflowType: els.comfyWorkflowType.value.trim(),
+    csvPath: els.comfyCsvPath.value.trim(),
+    imageRootDir: els.comfyImageRootDir.value.trim(),
+    videoRootDir: els.comfyVideoRootDir.value.trim(),
+    defaultSeed: seedText ? Number(seedText) : null,
+    defaultOutputPrefixBase: els.comfyOutputPrefix.value.trim(),
+    defaultParams: parseComfyParamsJson(),
+    workflowJsonText: els.comfyWorkflowJson.value.trim(),
+    bindingsJsonText: els.comfyBindingsJson.value.trim(),
+  };
+}
+
+async function startComfyJob() {
+  try {
+    els.startComfyJobBtn.disabled = true;
+    els.comfyProgressText.textContent = "准备中";
+    els.comfyProgressDetail.textContent = "正在提交到 ComfyUI。";
+    const payload = getComfyRunPayload();
+    if (!payload.csvPath) {
+      throw new Error("请先填写 Prompt CSV 路径。");
+    }
+    const res = await fetch("/api/comfy/run", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      throw new Error(data.error || "ComfyUI 任务启动失败");
+    }
+    state.comfy.jobId = data.jobId;
+    setComfyLog(data.job?.logs || []);
+    renderComfyJob(data.job);
+    pollComfyJob();
+  } catch (error) {
+    els.startComfyJobBtn.disabled = false;
+    alert(error.message);
+  }
+}
+
+function applySelectedTemplateBindings() {
+  const template = selectedComfyTemplate();
+  if (!template) {
+    alert("当前没有可用模板");
+    return;
+  }
+  const bindingsText = formatTemplateBindings(template);
+  if (!bindingsText) {
+    alert("当前模板没有显式 bindings");
+    return;
+  }
+  els.comfyBindingsJson.value = bindingsText;
+}
+
+function buildCsvRow(values) {
+  return values.map((value) => {
+    const text = String(value ?? "");
+    if (/[",\r\n]/.test(text)) {
+      return `"${text.replaceAll('"', '""')}"`;
+    }
+    return text;
+  }).join(",");
+}
+
+function downloadTextFile(filename, content, mimeType = "text/plain;charset=utf-8") {
+  const blob = new Blob([content], { type: mimeType });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+}
+
+async function pollComfyJob() {
+  if (state.comfy.pollTimer) clearInterval(state.comfy.pollTimer);
+  const tick = async () => {
+    if (!state.comfy.jobId) return;
+    const res = await fetch(`/api/jobs/${state.comfy.jobId}`);
+    const job = await res.json();
+    renderComfyJob(job);
+    setComfyLog(job.logs || []);
+
+    if (job.output_dir) {
+      const filesRes = await fetch(`/api/jobs/${state.comfy.jobId}/files`);
+      const filesData = await filesRes.json();
+      state.comfy.outputs = filesData.files || [];
+      renderOutputList(state.comfy.outputs, els.comfyOutputList, els.comfyResultCount, "结果将在这里显示");
+    }
+
+    if (["completed", "partial", "failed", "cancelled", "timeout"].includes(job.status)) {
+      els.startComfyJobBtn.disabled = false;
+      clearInterval(state.comfy.pollTimer);
+      state.comfy.pollTimer = null;
+    }
+  };
+  await tick();
+  state.comfy.pollTimer = setInterval(tick, 1000);
+}
+
+async function cancelComfyJob() {
+  try {
+    if (!state.comfy.jobId) {
+      throw new Error("请先运行 ComfyUI 任务");
+    }
+    const res = await fetch("/api/comfy/cancel", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ jobId: state.comfy.jobId }),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      throw new Error(data.error || "取消失败");
+    }
+    setComfyLog(data.job?.logs || []);
+    renderComfyJob(data.job);
+  } catch (error) {
+    alert(error.message);
+  }
+}
+
+async function retryComfyJob() {
+  try {
+    if (!state.comfy.jobId) {
+      throw new Error("请先运行或选择一个 ComfyUI 任务");
+    }
+    const res = await fetch("/api/comfy/retry", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ jobId: state.comfy.jobId }),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      throw new Error(data.error || "重试失败");
+    }
+    state.comfy.jobId = data.jobId;
+    setComfyLog(data.job?.logs || []);
+    renderComfyJob(data.job);
+    pollComfyJob();
+  } catch (error) {
+    alert(error.message);
+  }
+}
+
+async function retryFailedComfyJob() {
+  try {
+    if (!state.comfy.jobId) {
+      throw new Error("请先运行或选择一个 ComfyUI 任务");
+    }
+    const failures = Array.isArray(state.comfy.job?.failures) ? state.comfy.job.failures : [];
+    if (!failures.length) {
+      throw new Error("当前任务没有可重跑的失败项");
+    }
+    const retryableFailures = failures.filter((item) => item.retryable !== false);
+    if (!retryableFailures.length) {
+      throw new Error("当前失败项都需要先修正配置，不能直接重跑");
+    }
+    const res = await fetch("/api/comfy/retry", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ jobId: state.comfy.jobId, failedOnly: true }),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      throw new Error(data.error || "仅重跑失败项失败");
+    }
+    state.comfy.jobId = data.jobId;
+    setComfyLog(data.job?.logs || []);
+    renderComfyJob(data.job);
+    pollComfyJob();
+  } catch (error) {
+    alert(error.message);
+  }
+}
+
+async function resumePendingComfyJob() {
+  try {
+    if (!state.comfy.jobId) {
+      throw new Error("请先运行或选择一个 ComfyUI 任务");
+    }
+    const outputs = Array.isArray(state.comfy.job?.outputs) ? state.comfy.job.outputs : [];
+    const meta = state.comfy.job?.meta || {};
+    const selectedRowCount = Number(meta.selected_row_count || meta.row_count || 0);
+    if (!selectedRowCount) {
+      throw new Error("当前任务没有可续跑的行信息");
+    }
+    if (outputs.length >= selectedRowCount) {
+      throw new Error("当前任务中的已选行都已经成功完成，无需续跑");
+    }
+    const res = await fetch("/api/comfy/retry", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ jobId: state.comfy.jobId, skipSucceeded: true }),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      throw new Error(data.error || "跳过已成功项续跑失败");
+    }
+    state.comfy.jobId = data.jobId;
+    setComfyLog(data.job?.logs || []);
+    renderComfyJob(data.job);
+    pollComfyJob();
+  } catch (error) {
+    alert(error.message);
+  }
+}
+
+function exportComfyFailuresCsv() {
+  const failures = Array.isArray(state.comfy.job?.failures) ? state.comfy.job.failures : [];
+  if (!failures.length) {
+    alert("当前没有失败项可导出");
+    return;
+  }
+  const headers = ["row_index", "name", "stage", "error_code", "message", "retryable", "prompt_id", "detail"];
+  const lines = [buildCsvRow(headers)];
+  failures.forEach((item) => {
+    lines.push(
+      buildCsvRow([
+        item.row_index ?? "",
+        item.name ?? "",
+        item.stage ?? "",
+        item.error_code ?? "",
+        item.message ?? "",
+        item.retryable ?? "",
+        item.prompt_id ?? "",
+        item.detail ? (typeof item.detail === "string" ? item.detail : JSON.stringify(item.detail)) : "",
+      ])
+    );
+  });
+  const jobId = state.comfy.job?.id || "comfy_job";
+  downloadTextFile(`${jobId}_failures.csv`, `${lines.join("\r\n")}\r\n`, "text/csv;charset=utf-8");
+}
+
+async function openComfyOutput() {
+  if (!state.comfy.jobId) {
+    alert("请先运行 ComfyUI 任务");
+    return;
+  }
+  const res = await fetch(`/api/jobs/${state.comfy.jobId}/open-output`, { method: "POST" });
+  const data = await res.json();
+  if (!res.ok) {
+    alert(data.error || "无法打开输出目录");
+  }
+}
+
 function toDataUrl(file) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -1427,7 +2063,12 @@ async function startImageGeneration() {
       images = [];
       for (const file of state.image.files) {
         const dataUrl = await toDataUrl(file);
-        images.push({ name: file.name, dataUrl });
+        images.push({
+          name: file.name,
+          dataUrl,
+          sourcePath: resolveSourcePath(file, els.imageSourceRootDir.value),
+          relativePath: getLocalRelativePath(file),
+        });
       }
     }
 
@@ -1515,7 +2156,12 @@ async function startImageEditGeneration() {
       images = [];
       for (const file of state.imageEdit.files) {
         const dataUrl = await toDataUrl(file);
-        images.push({ name: file.name, dataUrl });
+        images.push({
+          name: file.name,
+          dataUrl,
+          sourcePath: resolveSourcePath(file, els.imageEditSourceRootDir.value),
+          relativePath: getLocalRelativePath(file),
+        });
       }
     }
 
@@ -1774,7 +2420,11 @@ async function prepareVideoGenerationItems() {
       videoPayload = { videoUrl: videoEntry.url };
     } else {
       els.videoProgressDetail.textContent = `正在读取视频文件：${match.video}`;
-      videoPayload = { videoDataUrl: await toDataUrl(videoEntry.file) };
+      videoPayload = {
+        videoDataUrl: await toDataUrl(videoEntry.file),
+        sourcePath: videoEntry.sourcePath || resolveSourcePath(videoEntry.file, els.videoSourceRootDir.value),
+        relativePath: videoEntry.relativePath || getLocalRelativePath(videoEntry.file),
+      };
     }
 
     const references = [];
@@ -1791,6 +2441,8 @@ async function prepareVideoGenerationItems() {
         references.push({
           name: referenceName,
           dataUrl: await toDataUrl(referenceEntry.file),
+          sourcePath: referenceEntry.sourcePath || resolveSourcePath(referenceEntry.file, els.referenceSourceRootDir.value),
+          relativePath: referenceEntry.relativePath || getLocalRelativePath(referenceEntry.file),
         });
       }
     }
@@ -1892,6 +2544,7 @@ function bindEvents() {
   els.shutdownAppBtn.addEventListener("click", shutdownApp);
   els.goPromptStudioBtn.addEventListener("click", () => setView("promptStudio", state.activePromptModule));
   els.goClipStudioBtn.addEventListener("click", () => setView("clipStudio"));
+  els.goComfyStudioBtn.addEventListener("click", () => setView("comfyStudio"));
 
   document.addEventListener("click", (event) => {
     const overviewButton = event.target.closest("[data-open-prompt-module]");
@@ -1992,6 +2645,37 @@ function bindEvents() {
   els.videoApiKey.addEventListener("input", () => setModuleModeBadge(els.videoApiKey, els.videoUseMock, els.videoModeBadge));
   els.videoUseMock.addEventListener("change", () => setModuleModeBadge(els.videoApiKey, els.videoUseMock, els.videoModeBadge));
 
+  els.comfyTemplateSelect.addEventListener("change", renderComfyTemplateDescription);
+  els.applyComfyTemplateBindingsBtn.addEventListener("click", applySelectedTemplateBindings);
+  els.comfyOutputDir.addEventListener("input", () => {
+    els.comfyOutputRootValue.textContent = normalizeDisplayPath(els.comfyOutputDir.value.trim()) || "未设置";
+  });
+  els.reloadComfyConfigBtn.addEventListener("click", loadComfyConfig);
+  els.saveComfyConfigBtn.addEventListener("click", saveComfyConfig);
+  els.checkComfyHealthBtn.addEventListener("click", checkComfyHealth);
+  els.reloadComfyTemplatesBtn.addEventListener("click", async () => {
+    try {
+      await loadComfyTemplates();
+    } catch (error) {
+      alert(error.message);
+    }
+  });
+  els.startComfyJobBtn.addEventListener("click", startComfyJob);
+  els.cancelComfyJobBtn.addEventListener("click", cancelComfyJob);
+  els.retryComfyJobBtn.addEventListener("click", retryComfyJob);
+  els.retryFailedComfyJobBtn.addEventListener("click", retryFailedComfyJob);
+  els.resumePendingComfyJobBtn.addEventListener("click", resumePendingComfyJob);
+  els.exportComfyFailuresBtn.addEventListener("click", exportComfyFailuresCsv);
+  els.refreshComfyJobBtn.addEventListener("click", () => state.comfy.jobId && pollComfyJob());
+  els.reloadComfyFilesBtn.addEventListener("click", async () => {
+    if (!state.comfy.jobId) return;
+    const res = await fetch(`/api/jobs/${state.comfy.jobId}/files`);
+    const data = await res.json();
+    state.comfy.outputs = data.files || [];
+    renderOutputList(state.comfy.outputs, els.comfyOutputList, els.comfyResultCount, "结果将在这里显示");
+  });
+  els.openComfyOutputBtn.addEventListener("click", openComfyOutput);
+
   els.clipPresetSelect.addEventListener("change", () => {
     state.clip.preset = els.clipPresetSelect.value;
     renderClipPresetDescription();
@@ -2075,17 +2759,23 @@ async function init() {
   renderOutputList([], els.imageOutputList, els.imageResultCount, "结果将在这里显示");
   renderOutputList([], els.imageEditOutputList, els.imageEditResultCount, "结果将在这里显示");
   renderOutputList([], els.videoOutputList, els.videoResultCount, "结果将在这里显示");
+  renderOutputList([], els.comfyOutputList, els.comfyResultCount, "结果将在这里显示");
   renderImageJob({ id: "", status: "idle", progress: 0, total: 0, error: "", output_dir: "" });
   renderImageEditJob({ id: "", status: "idle", progress: 0, total: 0, error: "", output_dir: "" });
   renderVideoJob({ id: "", status: "idle", progress: 0, total: 0, error: "", output_dir: "" });
+  renderComfyJob({ id: "", status: "idle", progress: 0, total: 0, error: "", output_dir: "", meta: {} });
   renderVideoMatches();
   setImageLog([]);
   setImageEditLog([]);
   setVideoLog([]);
+  setComfyLog([]);
+  renderComfyHealth({ online: false, error: "待检查" });
   await loadDefaults();
   await loadImagePromptConfig();
   await loadImageEditPromptConfig();
   await loadVideoPromptConfig();
+  await loadComfyConfig();
+  await loadComfyTemplates();
 }
 
 init();

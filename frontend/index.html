@@ -91,6 +91,42 @@
             </div>
           </div>
         </article>
+
+        <article class="feature-card feature-card-wide card">
+          <div class="feature-layout">
+            <div class="feature-copy">
+              <p class="panel-kicker">ComfyUI</p>
+              <h2>本地 Comfy 通信工作台</h2>
+              <p>连接本机自托管 ComfyUI，提交工作流、监听执行并回收结果。</p>
+              <ul class="feature-list">
+                <li>本地路径投递输入图片 / 视频</li>
+                <li>固定模板或内联 API workflow</li>
+                <li>健康检查 / 运行 / 取消 / 重试</li>
+              </ul>
+              <div class="feature-actions">
+                <button id="goComfyStudioBtn" class="btn btn-primary">进入</button>
+              </div>
+            </div>
+
+            <div class="module-overview card-shell">
+              <div class="section-header compact">
+                <div>
+                  <p class="panel-kicker">Included</p>
+                  <h2>能力</h2>
+                </div>
+                <span class="chip chip-soft">本机 ComfyUI</span>
+              </div>
+              <div class="clip-overview-grid">
+                <span class="chip">Health</span>
+                <span class="chip">Workflow</span>
+                <span class="chip">WebSocket</span>
+                <span class="chip">Queue</span>
+                <span class="chip">History</span>
+              </div>
+              <p class="panel-note">适合接入 ComfyUI API workflow 的本地调用场景。</p>
+            </div>
+          </div>
+        </article>
       </div>
     </section>
 
@@ -148,10 +184,14 @@
             </label>
             <div id="imageFileList" class="stack-list empty">未选择图片</div>
             <label class="prompt-field">
+              <span>图片源目录（本地文件生成完整路径时使用）</span>
+              <input id="imageSourceRootDir" class="input" type="text" placeholder="D:\media\images 或 /data/images" />
+            </label>
+            <label class="prompt-field">
               <span>图片 URL（每行一条，可写 `文件名 | URL`）</span>
               <textarea id="imageUrlInput" class="textarea" spellcheck="false" placeholder="demo.png | https://example.com/demo.png&#10;https://example.com/another-image.jpg"></textarea>
             </label>
-            <p class="panel-note">真实 API 建议使用可访问的 URL。</p>
+            <p class="panel-note">选择文件夹时会优先用“源目录 + 相对路径”生成 CSV 完整路径；拖拽散文件时会回退为“源目录 + 文件名”。</p>
           </article>
 
           <article class="card panel">
@@ -314,10 +354,14 @@
             </label>
             <div id="imageEditFileList" class="stack-list empty">未选择图片</div>
             <label class="prompt-field">
+              <span>图片源目录（本地文件生成完整路径时使用）</span>
+              <input id="imageEditSourceRootDir" class="input" type="text" placeholder="D:\media\image_edit 或 /data/image_edit" />
+            </label>
+            <label class="prompt-field">
               <span>图片 URL（每行一条，可写 `文件名 | URL`）</span>
               <textarea id="imageEditUrlInput" class="textarea" spellcheck="false" placeholder="demo.png | https://example.com/demo.png&#10;https://example.com/another-image.jpg"></textarea>
             </label>
-            <p class="panel-note">真实 API 建议使用可访问的 URL。</p>
+            <p class="panel-note">选择文件夹时会优先用“源目录 + 相对路径”生成 CSV 完整路径；拖拽散文件时会回退为“源目录 + 文件名”。</p>
           </article>
 
           <article class="card panel">
@@ -480,6 +524,10 @@
             </label>
             <div id="videoFileList" class="stack-list empty">未选择视频</div>
             <label class="prompt-field">
+              <span>视频源目录（本地文件生成完整路径时使用）</span>
+              <input id="videoSourceRootDir" class="input" type="text" placeholder="D:\media\videos 或 /data/videos" />
+            </label>
+            <label class="prompt-field">
               <span>视频 URL（每行一条，可写 `文件名 | URL`）</span>
               <textarea id="videoUrlInput" class="textarea" spellcheck="false" placeholder="a001.mp4 | https://example.com/a001.mp4&#10;https://example.com/a002.mov"></textarea>
             </label>
@@ -500,10 +548,14 @@
             </label>
             <div id="referenceFileList" class="stack-list empty">未选择参考图</div>
             <label class="prompt-field">
+              <span>参考图源目录（本地文件生成完整路径时使用）</span>
+              <input id="referenceSourceRootDir" class="input" type="text" placeholder="D:\media\references 或 /data/references" />
+            </label>
+            <label class="prompt-field">
               <span>参考图 URL（每行一条，可写 `文件名 | URL`）</span>
               <textarea id="referenceUrlInput" class="textarea" spellcheck="false" placeholder="a001.png | https://example.com/a001.png&#10;a001_1.png | https://example.com/a001_1.png"></textarea>
             </label>
-            <p class="panel-note">真实 API 建议使用可访问的 URL。</p>
+            <p class="panel-note">选择文件夹时会优先用“源目录 + 相对路径”生成 CSV 完整路径；拖拽散文件时会回退为“源目录 + 文件名”。</p>
           </article>
 
           <article class="card panel">
@@ -793,6 +845,248 @@
                 </div>
               </div>
               <div id="clipOutputList" class="output-list empty">结果将在这里显示</div>
+            </article>
+          </div>
+        </section>
+      </section>
+    </section>
+
+    <section id="comfyStudioView" class="view" hidden>
+      <section class="stats-grid">
+        <article class="stat card">
+          <span>服务</span>
+          <strong id="comfyServerBadge">未知</strong>
+          <small id="comfyServerMeta">待检查</small>
+        </article>
+        <article class="stat card">
+          <span>模板</span>
+          <strong id="comfyTemplateCount">0</strong>
+          <small id="comfyTemplateMeta">未加载</small>
+        </article>
+        <article class="stat card">
+          <span>状态</span>
+          <strong id="comfyStatusBadge">待开始</strong>
+          <small id="comfyJobMeta">未运行</small>
+        </article>
+        <article class="stat card">
+          <span>结果</span>
+          <strong id="comfyResultCount">0</strong>
+          <small id="comfyOutputRootValue">未设置</small>
+        </article>
+      </section>
+
+      <section class="workspace">
+        <aside class="sidebar">
+          <article class="card panel">
+            <div class="section-header">
+              <div>
+                <p class="panel-kicker">Step 01</p>
+                <h2>服务配置</h2>
+                <p class="panel-note">连接本机 ComfyUI Server。</p>
+              </div>
+              <div class="section-actions">
+                <button id="checkComfyHealthBtn" class="btn btn-ghost">检查</button>
+                <button id="reloadComfyConfigBtn" class="btn btn-ghost">读取</button>
+                <button id="saveComfyConfigBtn" class="btn btn-primary">保存</button>
+              </div>
+            </div>
+            <div class="config-path">
+              <span>配置文件</span>
+              <code id="comfyConfigPath">加载中...</code>
+            </div>
+            <div class="form-grid">
+              <label>
+                <span>Comfy Base URL</span>
+                <input id="comfyBaseUrl" class="input" type="text" placeholder="http://127.0.0.1:8188" />
+              </label>
+              <label>
+                <span>Comfy Root Dir</span>
+                <input id="comfyRootDir" class="input" type="text" placeholder="C:/ComfyUI" />
+              </label>
+              <label>
+                <span>Comfy Input Dir</span>
+                <input id="comfyInputDir" class="input" type="text" placeholder="C:/ComfyUI/input" />
+              </label>
+              <label>
+                <span>Comfy Output Dir</span>
+                <input id="comfyOutputDir" class="input" type="text" placeholder="C:/ComfyUI/output" />
+              </label>
+              <label>
+                <span>Temp Dir</span>
+                <input id="comfyTempDir" class="input" type="text" placeholder="output/comfy_temp" />
+              </label>
+              <label>
+                <span>Path Style</span>
+                <select id="comfyPathStyle" class="input">
+                  <option value="">自动</option>
+                  <option value="windows">windows</option>
+                  <option value="linux">linux</option>
+                </select>
+              </label>
+              <label>
+                <span>Request Timeout (s)</span>
+                <input id="comfyRequestTimeout" class="input" type="number" min="5" step="1" />
+              </label>
+              <label>
+                <span>Job Timeout (s)</span>
+                <input id="comfyJobTimeout" class="input" type="number" min="30" step="1" />
+              </label>
+              <label>
+                <span>Poll Interval (s)</span>
+                <input id="comfyPollInterval" class="input" type="number" min="1" step="1" />
+              </label>
+              <label>
+                <span>Workflow Dir</span>
+                <input id="comfyWorkflowManifestDir" class="input" type="text" placeholder="backend/comfyui_workflows" />
+              </label>
+            </div>
+            <div class="toggle-row">
+              <label class="toggle"><input id="comfyWsEnabled" type="checkbox" checked /> 启用 WebSocket 监听</label>
+            </div>
+          </article>
+
+          <article class="card panel">
+            <div class="section-header">
+              <div>
+                <p class="panel-kicker">Step 02</p>
+                <h2>模板与任务参数</h2>
+              </div>
+              <button id="reloadComfyTemplatesBtn" class="btn btn-ghost">刷新模板</button>
+            </div>
+            <label class="prompt-field">
+              <span>模板</span>
+              <select id="comfyTemplateSelect" class="input"></select>
+            </label>
+            <div id="comfyTemplateDescription" class="rule-box">加载模板中...</div>
+            <div class="section-actions" style="margin-top: 0.75rem;">
+              <button id="applyComfyTemplateBindingsBtn" class="btn btn-ghost">载入模板 Bindings</button>
+            </div>
+            <pre id="comfyBindingsPreview" class="rule-box code-preview">模板 bindings 将显示在这里</pre>
+            <div class="form-grid" style="margin-top: 0.85rem;">
+              <label>
+                <span>Workflow Type</span>
+                <input id="comfyWorkflowType" class="input" type="text" placeholder="image_video_to_video" />
+              </label>
+              <label>
+                <span>默认 Seed（可选）</span>
+                <input id="comfyDefaultSeed" class="input" type="number" step="1" placeholder="123456" />
+              </label>
+              <label>
+                <span>默认输出前缀目录</span>
+                <input id="comfyOutputPrefix" class="input" type="text" placeholder="video/jobs/comfy_batch" />
+              </label>
+              <label>
+                <span>默认 Params JSON</span>
+                <input id="comfyParamsJson" class="input" type="text" placeholder='{"steps":20,"cfg":7,"denoise":0.6}' />
+              </label>
+            </div>
+          </article>
+
+          <article class="card panel">
+            <div class="section-header">
+              <div>
+                <p class="panel-kicker">Step 03</p>
+                <h2>CSV 批量导入</h2>
+              </div>
+              <span class="chip chip-soft">Prompt CSV -> ComfyUI</span>
+            </div>
+            <div class="form-grid">
+              <label>
+                <span>CSV 路径</span>
+                <input id="comfyCsvPath" class="input" type="text" placeholder="D:/AIGC/web_demo/output/.../prompts.csv" />
+              </label>
+              <label>
+                <span>图片根目录（可选）</span>
+                <input id="comfyImageRootDir" class="input" type="text" placeholder="D:/dataset/images" />
+              </label>
+              <label>
+                <span>视频根目录（可选）</span>
+                <input id="comfyVideoRootDir" class="input" type="text" placeholder="D:/dataset/videos" />
+              </label>
+            </div>
+            <p class="panel-note">CSV 推荐列：`image_path,video_path,positive_prompt,negative_prompt,seed,output_prefix,params_json`。如果只有 `image_name` / `video_name`，请同时填写对应根目录。</p>
+          </article>
+        </aside>
+
+        <section class="mainpane">
+          <article class="card panel">
+            <div class="section-header">
+              <div>
+                <p class="panel-kicker">Step 04</p>
+                <h2>高级工作流覆盖</h2>
+                <p class="panel-note">未填写时使用所选模板；填写后以后端内联 JSON 为准。</p>
+              </div>
+            </div>
+            <div class="prompt-grid">
+              <label class="prompt-field">
+                <span>Workflow JSON</span>
+                <textarea id="comfyWorkflowJson" class="textarea" spellcheck="false" placeholder='{"1":{"class_type":"..."}}'></textarea>
+              </label>
+              <label class="prompt-field">
+                <span>Bindings JSON</span>
+                <textarea id="comfyBindingsJson" class="textarea" spellcheck="false" placeholder='{"positive_prompt":[{"node":"10","input":"text"}]}'></textarea>
+              </label>
+            </div>
+          </article>
+
+          <article class="card panel">
+            <div class="section-header">
+              <div>
+                <p class="panel-kicker">Step 05</p>
+                <h2>运行与进度</h2>
+              </div>
+              <div class="section-actions">
+                <button id="cancelComfyJobBtn" class="btn btn-ghost">取消</button>
+                <button id="retryComfyJobBtn" class="btn btn-ghost">重试</button>
+                <button id="retryFailedComfyJobBtn" class="btn btn-ghost">仅重跑失败项</button>
+                <button id="resumePendingComfyJobBtn" class="btn btn-ghost">跳过已成功项续跑</button>
+                <button id="exportComfyFailuresBtn" class="btn btn-ghost">导出失败 CSV</button>
+                <button id="refreshComfyJobBtn" class="btn btn-ghost">刷新</button>
+                <button id="startComfyJobBtn" class="btn btn-primary">开始</button>
+              </div>
+            </div>
+            <div class="progress-shell">
+              <div class="progress-track"><div id="comfyProgressBar" class="progress-fill"></div></div>
+              <div class="progress-copy">
+                <strong id="comfyProgressText">等待</strong>
+                <span id="comfyProgressDetail">这里显示运行节点与回收状态。</span>
+              </div>
+            </div>
+          </article>
+
+          <div class="content-grid">
+            <article class="card panel">
+              <div class="section-header">
+                <div>
+                  <p class="panel-kicker">Live</p>
+                  <h2>日志</h2>
+                </div>
+              </div>
+              <pre id="comfyLogBox" class="log-box">暂无日志</pre>
+            </article>
+
+            <article class="card panel">
+              <div class="section-header">
+                <div>
+                  <p class="panel-kicker">Issues</p>
+                  <h2>失败详情</h2>
+                </div>
+              </div>
+              <div id="comfyFailureList" class="output-list empty">失败项会显示在这里</div>
+            </article>
+
+            <article class="card panel">
+              <div class="section-header">
+                <div>
+                  <p class="panel-kicker">Output</p>
+                  <h2>结果文件</h2>
+                </div>
+                <div class="section-actions">
+                  <button id="reloadComfyFilesBtn" class="btn btn-ghost">刷新文件</button>
+                  <button id="openComfyOutputBtn" class="btn btn-ghost">打开目录</button>
+                </div>
+              </div>
+              <div id="comfyOutputList" class="output-list empty">结果将在这里显示</div>
             </article>
           </div>
         </section>

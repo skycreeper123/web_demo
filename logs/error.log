@@ -1,0 +1,14 @@
+2026-08-18 14:25:05,980 | ERROR    | web_demo.job.de8238ddc488 | Job error: 'name'
+2026-08-18 14:25:05,982 | ERROR    | web_demo.job.de8238ddc488 | Job worker crashed.
+Traceback (most recent call last):
+  File "D:\AIGC\web_demo\backend\app\main.py", line 340, in worker
+    result = runner(job)
+             ^^^^^^^^^^^
+  File "D:\AIGC\web_demo\backend\app\main.py", line 379, in runner
+    return run_image_generation(
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "D:\AIGC\web_demo\backend\app\services\prompt_generator.py", line 176, in run_image_generation
+    name = image["name"]
+           ~~~~~^^^^^^^^
+KeyError: 'name'
+2026-08-18 14:25:05,985 | ERROR    | web_demo.job.de8238ddc488 | Failed: 'name'

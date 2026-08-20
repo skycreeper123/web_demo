@@ -1,0 +1,39 @@
+{
+  "video": "a001.mp4",
+  "video_path": "",
+  "match_key": "a001",
+  "image_path": "",
+  "reference_main": "a001.jpg",
+  "reference_alt_1": "",
+  "reference_alt_2": "",
+  "source_summary": "A male food vendor in a yellow cap and yellow apron flips pancakes on a griddle in a food stall.",
+  "reference_summary": "An elderly East Asian woman with deep wrinkles wearing a purple headscarf and purple floral velvet top.",
+  "edit_goal": "Replace the male vendor with the elderly woman from the reference image while preserving scene background and cooking actions.",
+  "zh_prompt": "将视频中制作煎饼的男店员替换为参考图中的东亚老年妇女。保留参考图中的面部特征、深度皱纹及紫色头巾，身穿原视频的白色工装和黄色围裙。严格保留原视频的平底锅烹饪动作、铲饼手势、镜头移动以及背景店铺环境，确保动态自然连贯、无闪烁。",
+  "en_prompt": "Replace the male street food vendor with the elderly East Asian woman from the reference image. Transfer her facial identity, deep wrinkles, and purple headscarf while wearing the vendor's white shirt and yellow apron. Preserve the exact cooking motions, hand spatulas movements, camera trajectory, and background environment with smooth temporal continuity.",
+  "positive_prompt": "Replace the male street food vendor with the elderly East Asian woman from the reference image. Transfer her facial identity, deep wrinkles, and purple headscarf while wearing the vendor's white shirt and yellow apron. Preserve the exact cooking motions, hand spatulas movements, camera trajectory, and background environment with smooth temporal continuity.",
+  "negative_prompt": "Flickering, Identity inconsistency, Background distortion, Extra limbs or unnatural hand poses, identity drift, face distortion, hand distortion, body mismatch, flicker, temporal instability, pose mismatch, background corruption, extra limbs, accidental replacement of other people, watermark, garbled text, unsafe content",
+  "keep_unchanged": [
+    "Griddle and food preparation setup",
+    "Spatula and cooking motion trajectory",
+    "Background staff and store elements",
+    "Camera movement and lighting"
+  ],
+  "add_or_emphasize": [
+    "Elderly East Asian female identity",
+    "Deep facial wrinkles",
+    "Purple headscarf"
+  ],
+  "avoid": [
+    "Flickering",
+    "Identity inconsistency",
+    "Background distortion",
+    "Extra limbs or unnatural hand poses"
+  ],
+  "quality_check": [
+    "Facial consistency with reference image across frames",
+    "Accurate motion tracking on hand and spatula actions",
+    "Unchanged background environment"
+  ],
+  "raw_response": "{\n  \"source_summary\": \"A male food vendor in a yellow cap and yellow apron flips pancakes on a griddle in a food stall.\",\n  \"reference_summary\": \"An elderly East Asian woman with deep wrinkles wearing a purple headscarf and purple floral velvet top.\",\n  \"edit_goal\": \"Replace the male vendor with the elderly woman from the reference image while preserving scene background and cooking actions.\",\n  \"zh_prompt\": \"将视频中制作煎饼的男店员替换为参考图中的东亚老年妇女。保留参考图中的面部特征、深度皱纹及紫色头巾，身穿原视频的白色工装和黄色围裙。严格保留原视频的平底锅烹饪动作、铲饼手势、镜头移动以及背景店铺环境，确保动态自然连贯、无闪烁。\",\n  \"en_prompt\": \"Replace the male street food vendor with the elderly East Asian woman from the reference image. Transfer her facial identity, deep wrinkles, and purple headscarf while wearing the vendor's white shirt and yellow apron. Preserve the exact cooking motions, hand spatulas movements, camera trajectory, and background environment with smooth temporal continuity.\",\n  \"keep_unchanged\": [\n    \"Griddle and food preparation setup\",\n    \"Spatula and cooking motion trajectory\",\n    \"Background staff and store elements\",\n    \"Camera movement and lighting\"\n  ],\n  \"add_or_emphasize\": [\n    \"Elderly East Asian female identity\",\n    \"Deep facial wrinkles\",\n    \"Purple headscarf\"\n  ],\n  \"avoid\": [\n    \"Flickering\",\n    \"Identity inconsistency\",\n    \"Background distortion\",\n    \"Extra limbs or unnatural hand poses\"\n  ],\n  \"quality_check\": [\n    \"Facial consistency with reference image across frames\",\n    \"Accurate motion tracking on hand and spatula actions\",\n    \"Unchanged background environment\"\n  ]\n}"
+}

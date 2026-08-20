@@ -1,0 +1,8 @@
+2026-08-18 14:45:41,970 | INFO     | web_demo.job.c673445b5653 | Job created. kind=image_edit total=1 log_file=D:\AIGC\web_demo\logs\jobs\c673445b5653.log
+2026-08-18 14:45:41,972 | INFO     | web_demo.job.c673445b5653 | Starting image edit prompt job. items=1 output_root=D:\AIGC\web_demo\output
+2026-08-18 14:45:41,973 | INFO     | web_demo.job.c673445b5653 | Status changed: queued -> running
+2026-08-18 14:45:41,978 | INFO     | web_demo.job.c673445b5653 | Processing image edit: a001.jpg
+2026-08-18 14:45:41,983 | INFO     | web_demo.job.c673445b5653 | Saved: a001.prompt.json / a001.prompt.txt
+2026-08-18 14:45:41,987 | INFO     | web_demo.job.c673445b5653 | Status changed: running -> completed
+2026-08-18 14:45:41,987 | INFO     | web_demo.job.c673445b5653 | Output directory: D:\AIGC\web_demo\output\20260818_144541_974
+2026-08-18 14:45:41,989 | INFO     | web_demo.job.c673445b5653 | Done. Output: D:\AIGC\web_demo\output\20260818_144541_974

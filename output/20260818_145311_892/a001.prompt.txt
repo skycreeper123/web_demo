@@ -1,0 +1,20 @@
+Chinese Prompt:
+基于原图生成视频，保持人物与场景一致。主体为老妇人，保持微笑初始状态。核心动作：老妇人微微眨眼，笑容稍加加深，头部进行极小幅度的自然微晃。动作缓慢顺畅。镜头保持静止特写。阳光光影、紫色头巾与服装花纹完全保持不变。严禁面部扭曲、身份漂移、闪烁或背景重构。
+
+English Prompt:
+Animate the input image naturally while preserving original details. The elderly woman blinks softly and subtle warmth enhances her smile with gentle, minimal head movement. The camera stays static in a tight portrait shot. Warm sunlight and lighting logic remain constant. Maintain her exact facial identity, purple headscarf, and patterned velvet clothing without distortion or flickering.
+
+Positive Prompt:
+Animate the input image naturally while preserving original details. The elderly woman blinks softly and subtle warmth enhances her smile with gentle, minimal head movement. The camera stays static in a tight portrait shot. Warm sunlight and lighting logic remain constant. Maintain her exact facial identity, purple headscarf, and patterned velvet clothing without distortion or flickering.
+
+Negative Prompt:
+Identity drift or facial distortion, Flickering and unnatural jerks, Clothing or headscarf changes, Background alteration or camera jitter, identity drift, face distortion, hand distortion, body deformation, clothing change, background reconstruction, object count change, flicker, camera jump, watermark, garbled text, unsafe content
+
+Keep Unchanged:
+Facial identity and fine wrinkles; Purple headscarf and blue patterned jacket; Lighting direction and dark background; Overall portrait composition
+
+Avoid:
+Identity drift or facial distortion; Flickering and unnatural jerks; Clothing or headscarf changes; Background alteration or camera jitter
+
+Quality Check:
+Consistency of facial features and age details; Smoothness of micro-expressions and blinking; Stability of lighting and background

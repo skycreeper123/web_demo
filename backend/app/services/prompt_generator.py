@@ -9,21 +9,41 @@ from typing import Any, Callable
 from web_demo.backend.app.core.config import IMAGE_PROMPT_KIND, load_prompt_config, merge_prompt_config
 from web_demo.backend.app.core.llm_client import OpenAICompatibleClient
 from web_demo.backend.app.utils.file_writer import ensure_dir, write_csv, write_json, write_text
+from web_demo.backend.app.utils.image_loader import parse_data_url
 
 
 @dataclass
 class GeneratedAsset:
     image: str
+    image_path: str
     subject: str
     scene_summary: str
     zh_prompt: str
     en_prompt: str
+    positive_prompt: str
+    negative_prompt: str
     keep_unchanged: list[str] = field(default_factory=list)
     avoid: list[str] = field(default_factory=list)
     quality_check: list[str] = field(default_factory=list)
     raw_response: str = ""
     json_file: str = ""
     txt_file: str = ""
+
+
+DEFAULT_NEGATIVE_TERMS = [
+    "identity drift",
+    "face distortion",
+    "hand distortion",
+    "body deformation",
+    "clothing change",
+    "background reconstruction",
+    "object count change",
+    "flicker",
+    "camera jump",
+    "watermark",
+    "garbled text",
+    "unsafe content",
+]
 
 
 def _try_parse_json(text: str) -> dict[str, Any] | None:
@@ -77,6 +97,10 @@ def _format_text(payload: dict[str, Any]) -> str:
         "",
         f"English Prompt:\n{payload.get('en_prompt', '')}",
         "",
+        f"Positive Prompt:\n{payload.get('positive_prompt', '')}",
+        "",
+        f"Negative Prompt:\n{payload.get('negative_prompt', '')}",
+        "",
         "Keep Unchanged:\n" + "; ".join(payload.get("keep_unchanged", []) or []),
         "",
         "Avoid:\n" + "; ".join(payload.get("avoid", []) or []),
@@ -96,10 +120,80 @@ def _create_timestamp_output_dir(output_root: Path) -> Path:
     return ensure_dir(candidate)
 
 
+def _derive_positive_prompt(payload: dict[str, Any]) -> str:
+    explicit = str(payload.get("positive_prompt") or "").strip()
+    if explicit:
+        return explicit
+    return str(payload.get("en_prompt") or payload.get("zh_prompt") or "").strip()
+
+
+def _derive_negative_prompt(payload: dict[str, Any]) -> str:
+    explicit = str(payload.get("negative_prompt") or "").strip()
+    if explicit:
+        return explicit
+    avoid = payload.get("avoid", []) or []
+    candidate_terms: list[str] = []
+    if isinstance(avoid, list):
+        for item in avoid:
+            candidate_terms.extend(part.strip() for part in str(item).split(",") if part.strip())
+    terms: list[str] = []
+    seen: set[str] = set()
+    for item in [*candidate_terms, *DEFAULT_NEGATIVE_TERMS]:
+        key = item.casefold()
+        if key in seen:
+            continue
+        seen.add(key)
+        terms.append(item)
+    return ", ".join(terms)
+
+
+def _default_output_prefix(image_name: str) -> str:
+    return f"comfy/image_to_video/{Path(image_name).stem}"
+
+
+def _normalize_source_path(value: Any) -> str:
+    candidate = str(value or "").strip()
+    if not candidate:
+        return ""
+    return str(Path(candidate).expanduser())
+
+
+def _unique_media_path(root: Path, filename: str) -> Path:
+    safe_name = Path(str(filename or "source.bin")).name or "source.bin"
+    candidate = root / safe_name
+    if not candidate.exists():
+        return candidate
+    stem = candidate.stem
+    suffix = candidate.suffix
+    index = 1
+    while True:
+        next_candidate = root / f"{stem}_{index}{suffix}"
+        if not next_candidate.exists():
+            return next_candidate
+        index += 1
+
+
+def _materialize_local_source(
+    *,
+    job_output_dir: Path,
+    source_path: str,
+    data_url: str,
+    filename: str,
+) -> str:
+    text = str(data_url or "").strip()
+    if text.startswith("data:"):
+        _, payload = parse_data_url(text)
+        source_root = ensure_dir(job_output_dir / "source_media" / "images")
+        target = _unique_media_path(source_root, filename)
+        target.write_bytes(payload)
+        return str(target)
+    return source_path
+
+
 def run_image_generation(
     *,
     job_id: str,
-    images: list[dict[str, str]],
+    images: list[dict[str, Any]],
     output_root: Path,
     api_key: str,
     base_url: str,
@@ -122,6 +216,12 @@ def run_image_generation(
     for index, image in enumerate(images, start=1):
         name = image["name"]
         image_url = str(image.get("imageUrl") or image.get("dataUrl") or "")
+        image_source_path = _materialize_local_source(
+            job_output_dir=job_output_dir,
+            source_path=_normalize_source_path(image.get("sourcePath")),
+            data_url=str(image.get("dataUrl") or ""),
+            filename=name,
+        )
         stem = Path(name).stem
         json_path = job_output_dir / f"{stem}.prompt.json"
         txt_path = job_output_dir / f"{stem}.prompt.txt"
@@ -132,6 +232,8 @@ def run_image_generation(
                 continue
 
             log(f"Processing: {name}")
+            if image_source_path:
+                log(f"Source media staged: {image_source_path}")
             if use_mock or not api_key.strip():
                 payload = _mock_result(name, config)
                 raw_response = json.dumps(payload, ensure_ascii=False, indent=2)
@@ -145,17 +247,22 @@ def run_image_generation(
                     "scene_summary": "",
                     "zh_prompt": raw_response,
                     "en_prompt": "",
+                    "negative_prompt": "",
                     "keep_unchanged": [],
                     "avoid": [],
                     "quality_check": [],
                     "raw_response": raw_response,
                 }
 
+            positive_prompt = _derive_positive_prompt(payload)
+            negative_prompt = _derive_negative_prompt(payload)
             normalized = {
                 "subject": payload.get("subject", ""),
                 "scene_summary": payload.get("scene_summary", ""),
                 "zh_prompt": payload.get("zh_prompt", ""),
                 "en_prompt": payload.get("en_prompt", ""),
+                "positive_prompt": positive_prompt,
+                "negative_prompt": negative_prompt,
                 "keep_unchanged": payload.get("keep_unchanged", []) or [],
                 "avoid": payload.get("avoid", []) or [],
                 "quality_check": payload.get("quality_check", []) or [],
@@ -167,10 +274,13 @@ def run_image_generation(
             assets.append(
                 GeneratedAsset(
                     image=name,
+                    image_path=image_source_path,
                     subject=normalized["subject"],
                     scene_summary=normalized["scene_summary"],
                     zh_prompt=normalized["zh_prompt"],
                     en_prompt=normalized["en_prompt"],
+                    positive_prompt=normalized["positive_prompt"],
+                    negative_prompt=normalized["negative_prompt"],
                     keep_unchanged=list(normalized["keep_unchanged"]),
                     avoid=list(normalized["avoid"]),
                     quality_check=list(normalized["quality_check"]),
@@ -188,6 +298,17 @@ def run_image_generation(
 
     summary_rows = [
         {
+            "image_path": item.image_path,
+            "video_path": "",
+            "image_name": item.image,
+            "video_name": "",
+            "positive_prompt": item.positive_prompt,
+            "negative_prompt": item.negative_prompt,
+            "seed": "",
+            "output_prefix": _default_output_prefix(item.image),
+            "params_json": "{}",
+            "workflow_type": "image_to_video",
+            "prompt_module": IMAGE_PROMPT_KIND,
             "image": item.image,
             "subject": item.subject,
             "scene_summary": item.scene_summary,

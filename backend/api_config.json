@@ -4,6 +4,7 @@
     "base_url": "https://4sapi.com/v1",
     "model": "gemini-3.6-flash",
     "output_dir": "output",
+    "source_root_dir": "",
     "use_mock": false,
     "overwrite": false
   },
@@ -12,6 +13,7 @@
     "base_url": "https://4sapi.com/v1",
     "model": "gemini-3.6-flash",
     "output_dir": "output",
+    "source_root_dir": "",
     "use_mock": true,
     "overwrite": false
   },
@@ -20,6 +22,8 @@
     "base_url": "https://4sapi.com/v1",
     "model": "gemini-3.6-flash",
     "output_dir": "output",
+    "video_source_root_dir": "",
+    "reference_source_root_dir": "",
     "use_mock": false,
     "overwrite": false
   }

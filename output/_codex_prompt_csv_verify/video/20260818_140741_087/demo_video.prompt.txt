@@ -1,0 +1,26 @@
+Edit Goal:
+Replace the main target person in the source video with the person from the reference images while preserving the original scene, action, camera logic, and temporal continuity.
+
+Chinese Prompt:
+请基于源视频 demo_video.mp4 进行人物替换式视频编辑，将主目标人物替换为参考图像 ref_main.png, ref_alt1.png 中的人物身份与可见外观特征，同时尽量保留原视频的动作轨迹、姿态逻辑、镜头运动、场景布局、背景结构、光照逻辑、节奏与叙事连续性。替换后的人物应在脸部、发型、体态和整体身份上与参考图像一致，并自然融入原视频动作与环境。不要误改其他人物，不要改变非目标物体和背景，不要出现身份漂移、脸手畸形、肢体错位、闪烁、背景重构、时序跳变、水印、乱码或不安全内容。
+
+English Prompt:
+Edit the source video demo_video.mp4 by replacing the main target person with the person shown in the reference images ref_main.png, ref_alt1.png, while preserving the original action trajectory, pose logic, camera movement, scene layout, background structure, lighting logic, rhythm, and narrative continuity as much as possible. The replaced person should match the reference identity and visible appearance in face, hairstyle, body impression, and overall character presence, and should integrate naturally into the original motion and environment. Do not alter other people, non-target objects, or the background, and avoid identity drift, face or hand distortion, body mismatch, flicker, background corruption, temporal instability, watermarks, unreadable text, or unsafe content.
+
+Positive Prompt:
+Edit the source video demo_video.mp4 by replacing the main target person with the person shown in the reference images ref_main.png, ref_alt1.png, while preserving the original action trajectory, pose logic, camera movement, scene layout, background structure, lighting logic, rhythm, and narrative continuity as much as possible. The replaced person should match the reference identity and visible appearance in face, hairstyle, body impression, and overall character presence, and should integrate naturally into the original motion and environment. Do not alter other people, non-target objects, or the background, and avoid identity drift, face or hand distortion, body mismatch, flicker, background corruption, temporal instability, watermarks, unreadable text, or unsafe content.
+
+Negative Prompt:
+identity drift or accidental replacement of other people, flicker, pose mismatch, or temporal instability, background corruption or over-redesign, identity drift, face distortion, hand distortion, body mismatch, flicker, temporal instability, pose mismatch, background corruption, extra limbs, accidental replacement of other people, watermark, garbled text, unsafe content
+
+Keep Unchanged:
+source camera motion and shot continuity; scene layout and background structure; non-target people and non-target objects
+
+Add Or Emphasize:
+reference identity and facial traits; body and hand consistency; natural integration into the original motion
+
+Avoid:
+identity drift or accidental replacement of other people; flicker, pose mismatch, or temporal instability; background corruption or over-redesign
+
+Quality Check:
+the replaced person consistently matches the reference identity; motion, camera, and continuity remain natural; no background corruption, flicker, or structural distortion

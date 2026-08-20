@@ -1,0 +1,26 @@
+Edit Goal:
+Replace the male vendor with the elderly woman from the reference image while preserving scene background and cooking actions.
+
+Chinese Prompt:
+将视频中制作煎饼的男店员替换为参考图中的东亚老年妇女。保留参考图中的面部特征、深度皱纹及紫色头巾，身穿原视频的白色工装和黄色围裙。严格保留原视频的平底锅烹饪动作、铲饼手势、镜头移动以及背景店铺环境，确保动态自然连贯、无闪烁。
+
+English Prompt:
+Replace the male street food vendor with the elderly East Asian woman from the reference image. Transfer her facial identity, deep wrinkles, and purple headscarf while wearing the vendor's white shirt and yellow apron. Preserve the exact cooking motions, hand spatulas movements, camera trajectory, and background environment with smooth temporal continuity.
+
+Positive Prompt:
+Replace the male street food vendor with the elderly East Asian woman from the reference image. Transfer her facial identity, deep wrinkles, and purple headscarf while wearing the vendor's white shirt and yellow apron. Preserve the exact cooking motions, hand spatulas movements, camera trajectory, and background environment with smooth temporal continuity.
+
+Negative Prompt:
+Flickering, Identity inconsistency, Background distortion, Extra limbs or unnatural hand poses, identity drift, face distortion, hand distortion, body mismatch, flicker, temporal instability, pose mismatch, background corruption, extra limbs, accidental replacement of other people, watermark, garbled text, unsafe content
+
+Keep Unchanged:
+Griddle and food preparation setup; Spatula and cooking motion trajectory; Background staff and store elements; Camera movement and lighting
+
+Add Or Emphasize:
+Elderly East Asian female identity; Deep facial wrinkles; Purple headscarf
+
+Avoid:
+Flickering; Identity inconsistency; Background distortion; Extra limbs or unnatural hand poses
+
+Quality Check:
+Facial consistency with reference image across frames; Accurate motion tracking on hand and spatula actions; Unchanged background environment

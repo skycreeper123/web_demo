@@ -1,0 +1,3 @@
+2026-08-20 11:15:23,301 | INFO     | web_demo.job.df842f56bafb | Job created. kind=test total=2 log_file=D:\AIGC\web_demo\logs\jobs\df842f56bafb.log
+2026-08-20 11:15:23,327 | INFO     | web_demo.job.df842f56bafb | persisted log
+2026-08-20 11:15:23,344 | INFO     | web_demo.job.df842f56bafb | Status changed: queued -> completed

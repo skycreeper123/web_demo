@@ -194,9 +194,10 @@ def list_clip_presets() -> list[dict[str, Any]]:
 
 
 def _resolve_input_dir(value: str) -> Path:
-    path = Path(str(value or "").strip())
-    if not path:
+    text = str(value or "").strip()
+    if not text:
         raise RuntimeError("请输入输入目录路径。")
+    path = Path(text).expanduser()
     if not path.is_absolute():
         path = (Path.cwd() / path).resolve()
     if not path.exists():

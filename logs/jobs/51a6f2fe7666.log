@@ -1,0 +1,8 @@
+2026-08-18 14:42:47,417 | INFO     | web_demo.job.51a6f2fe7666 | Job created. kind=video total=1 log_file=D:\AIGC\web_demo\logs\jobs\51a6f2fe7666.log
+2026-08-18 14:42:47,418 | INFO     | web_demo.job.51a6f2fe7666 | Starting video prompt job. items=1 output_root=D:\AIGC\web_demo\output
+2026-08-18 14:42:47,420 | INFO     | web_demo.job.51a6f2fe7666 | Status changed: queued -> running
+2026-08-18 14:42:47,424 | INFO     | web_demo.job.51a6f2fe7666 | Processing video: a001.mp4
+2026-08-18 14:43:17,056 | INFO     | web_demo.job.51a6f2fe7666 | Saved: a001.prompt.json / a001.prompt.txt
+2026-08-18 14:43:17,060 | INFO     | web_demo.job.51a6f2fe7666 | Status changed: running -> completed
+2026-08-18 14:43:17,060 | INFO     | web_demo.job.51a6f2fe7666 | Output directory: D:\AIGC\web_demo\output\20260818_144247_420
+2026-08-18 14:43:17,061 | INFO     | web_demo.job.51a6f2fe7666 | Done. Output: D:\AIGC\web_demo\output\20260818_144247_420

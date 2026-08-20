@@ -52,8 +52,9 @@
 - 正负 Prompt 生成
 - 模型选择与模型文件管理
 - ComfyUI 工作流创作与调参
-- 业务数据库设计
 - 前端交互与界面展示
+
+任务持久化由 App 的任务层负责。本项目当前使用 `backend/jobs.sqlite3` 保存任务快照、日志、输出、失败详情和 Comfy 重试原始参数；通信模块只向上层提供状态和结果。
 
 ## 5. 适用场景
 
@@ -205,7 +206,7 @@ freeMemory(request?: FreeMemoryRequest): Promise<void>
 - `connect()`：初始化 HTTP 客户端、建立或复用 WebSocket 连接
 - `health()`：检查服务在线、节点可用、设备状态、队列状态
 - `submit(job)`：准备输入、绑定工作流、提交任务
-- `getStatus(jobId)`：查询内存中的任务状态或与服务端同步状态
+- `getStatus(jobId)`：查询 App 持久化任务状态，并按需与服务端队列、历史信息同步
 - `getResult(jobId)`：读取历史信息并回收结果文件
 - `cancel(jobId)`：取消运行中任务
 - `retry(jobId)`：基于原始任务重新提交
@@ -597,16 +598,23 @@ freeMemory(request?: FreeMemoryRequest): Promise<void>
 
 ### 20.3 任务系统集成
 
-当前项目已经在 `backend/app/main.py` 中提供 `JobStore` 和统一的 `/api/jobs/{jobId}` 轮询机制。ComfyUI 模块接入时，建议：
+当前项目已经在 `backend/app/main.py` 中提供 `JobStore`、SQLite 任务快照和统一的 `/api/jobs/{jobId}` 轮询机制。当前实现：
 
-- 继续复用现有 `JobStore`
-- 新增任务类型，例如 `comfy_video`
-- 在 `JobState` 基础上补充 `prompt_id`、`current_node`、`queue_remaining`、`result_path`、`retry_count` 等字段
-- 前端继续沿用现有轮询模式，不要求在第一版引入浏览器侧 WebSocket
+- 复用 `JobStore`
+- 使用 `comfy_video` 任务类型
+- 将 `prompt_id`、当前行、当前节点、队列状态、结果路径等写入任务 `meta`
+- 将日志、输出、失败详情和原始提交参数保存到 `backend/jobs.sqlite3`
+- 前端继续沿用轮询模式，不要求在浏览器侧引入 WebSocket
+
+恢复约束：
+
+- 服务重启后，历史任务会从 SQLite 载入
+- 退出前仍处于 `queued` 或 `running` 的 App 任务无法恢复后台线程，会被标记为失败
+- 已保存的 Comfy 原始提交参数可用于失败重跑或跳过成功项续跑
 
 ### 20.4 API 集成
 
-推荐新增或扩展以下后端接口：
+当前已提供以下后端接口：
 
 - `GET /api/comfy/health`
 - `POST /api/comfy/run`

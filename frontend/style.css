@@ -353,6 +353,11 @@ h2 {
   gap: 0.9rem;
 }
 
+#comfyStudioView .workspace {
+  grid-template-columns: minmax(360px, 460px) minmax(0, 1fr);
+  align-items: start;
+}
+
 .sidebar,
 .mainpane {
   display: grid;
@@ -414,6 +419,40 @@ h2 {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 0.85rem;
+}
+
+#comfyStudioView .sidebar .form-grid,
+#comfyStudioView .sidebar .prompt-grid {
+  grid-template-columns: 1fr;
+}
+
+#comfyStudioView .section-header,
+#comfyStudioView .section-actions,
+#comfyStudioView .toggle-row {
+  flex-wrap: wrap;
+}
+
+#comfyStudioView .section-actions {
+  justify-content: flex-end;
+}
+
+#comfyStudioView .section-actions .btn,
+#comfyStudioView .section-actions .chip {
+  flex: 0 1 auto;
+}
+
+#comfyStudioView .panel,
+#comfyStudioView .rule-box,
+#comfyStudioView .config-path,
+#comfyStudioView .config-path code,
+#comfyStudioView .input,
+#comfyStudioView .textarea {
+  min-width: 0;
+}
+
+#comfyStudioView .rule-box,
+#comfyStudioView .config-path code {
+  overflow-wrap: anywhere;
 }
 
 .form-grid label,
@@ -593,6 +632,19 @@ h2 {
 
 .file-row small,
 .output-row small { color: var(--muted); }
+
+.failure-row {
+  align-items: flex-start;
+}
+
+.code-preview {
+  max-height: 220px;
+  overflow: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-family: "Consolas", "SFMono-Regular", monospace;
+  font-size: 0.86rem;
+}
 
 .progress-shell {
   gap: 0.95rem;

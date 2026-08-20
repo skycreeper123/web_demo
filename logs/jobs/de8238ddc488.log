@@ -1,0 +1,18 @@
+2026-08-18 14:25:05,972 | INFO     | web_demo.job.de8238ddc488 | Job created. kind=image total=1 log_file=D:\AIGC\web_demo\logs\jobs\de8238ddc488.log
+2026-08-18 14:25:05,974 | INFO     | web_demo.job.de8238ddc488 | Starting image prompt job. items=1 output_root=D:\AIGC\web_demo\output\_codex_logging_verify\error_case
+2026-08-18 14:25:05,976 | INFO     | web_demo.job.de8238ddc488 | Status changed: queued -> running
+2026-08-18 14:25:05,980 | INFO     | web_demo.job.de8238ddc488 | Status changed: running -> failed
+2026-08-18 14:25:05,980 | ERROR    | web_demo.job.de8238ddc488 | Job error: 'name'
+2026-08-18 14:25:05,982 | ERROR    | web_demo.job.de8238ddc488 | Job worker crashed.
+Traceback (most recent call last):
+  File "D:\AIGC\web_demo\backend\app\main.py", line 340, in worker
+    result = runner(job)
+             ^^^^^^^^^^^
+  File "D:\AIGC\web_demo\backend\app\main.py", line 379, in runner
+    return run_image_generation(
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "D:\AIGC\web_demo\backend\app\services\prompt_generator.py", line 176, in run_image_generation
+    name = image["name"]
+           ~~~~~^^^^^^^^
+KeyError: 'name'
+2026-08-18 14:25:05,985 | ERROR    | web_demo.job.de8238ddc488 | Failed: 'name'

@@ -1,0 +1,26 @@
+{
+  "subject": "Elderly Asian woman wearing a purple headscarf and patterned velvet jacket",
+  "scene_summary": "Sunlit close-up portrait of a smiling elderly woman against a dark background.",
+  "zh_prompt": "基于原图生成视频，保持人物与场景一致。主体为老妇人，保持微笑初始状态。核心动作：老妇人微微眨眼，笑容稍加加深，头部进行极小幅度的自然微晃。动作缓慢顺畅。镜头保持静止特写。阳光光影、紫色头巾与服装花纹完全保持不变。严禁面部扭曲、身份漂移、闪烁或背景重构。",
+  "en_prompt": "Animate the input image naturally while preserving original details. The elderly woman blinks softly and subtle warmth enhances her smile with gentle, minimal head movement. The camera stays static in a tight portrait shot. Warm sunlight and lighting logic remain constant. Maintain her exact facial identity, purple headscarf, and patterned velvet clothing without distortion or flickering.",
+  "positive_prompt": "Animate the input image naturally while preserving original details. The elderly woman blinks softly and subtle warmth enhances her smile with gentle, minimal head movement. The camera stays static in a tight portrait shot. Warm sunlight and lighting logic remain constant. Maintain her exact facial identity, purple headscarf, and patterned velvet clothing without distortion or flickering.",
+  "negative_prompt": "Identity drift or facial distortion, Flickering and unnatural jerks, Clothing or headscarf changes, Background alteration or camera jitter, identity drift, face distortion, hand distortion, body deformation, clothing change, background reconstruction, object count change, flicker, camera jump, watermark, garbled text, unsafe content",
+  "keep_unchanged": [
+    "Facial identity and fine wrinkles",
+    "Purple headscarf and blue patterned jacket",
+    "Lighting direction and dark background",
+    "Overall portrait composition"
+  ],
+  "avoid": [
+    "Identity drift or facial distortion",
+    "Flickering and unnatural jerks",
+    "Clothing or headscarf changes",
+    "Background alteration or camera jitter"
+  ],
+  "quality_check": [
+    "Consistency of facial features and age details",
+    "Smoothness of micro-expressions and blinking",
+    "Stability of lighting and background"
+  ],
+  "raw_response": "{\n  \"subject\": \"Elderly Asian woman wearing a purple headscarf and patterned velvet jacket\",\n  \"scene_summary\": \"Sunlit close-up portrait of a smiling elderly woman against a dark background.\",\n  \"zh_prompt\": \"基于原图生成视频，保持人物与场景一致。主体为老妇人，保持微笑初始状态。核心动作：老妇人微微眨眼，笑容稍加加深，头部进行极小幅度的自然微晃。动作缓慢顺畅。镜头保持静止特写。阳光光影、紫色头巾与服装花纹完全保持不变。严禁面部扭曲、身份漂移、闪烁或背景重构。\",\n  \"en_prompt\": \"Animate the input image naturally while preserving original details. The elderly woman blinks softly and subtle warmth enhances her smile with gentle, minimal head movement. The camera stays static in a tight portrait shot. Warm sunlight and lighting logic remain constant. Maintain her exact facial identity, purple headscarf, and patterned velvet clothing without distortion or flickering.\",\n  \"keep_unchanged\": [\n    \"Facial identity and fine wrinkles\",\n    \"Purple headscarf and blue patterned jacket\",\n    \"Lighting direction and dark background\",\n    \"Overall portrait composition\"\n  ],\n  \"avoid\": [\n    \"Identity drift or facial distortion\",\n    \"Flickering and unnatural jerks\",\n    \"Clothing or headscarf changes\",\n    \"Background alteration or camera jitter\"\n  ],\n  \"quality_check\": [\n    \"Consistency of facial features and age details\",\n    \"Smoothness of micro-expressions and blinking\",\n    \"Stability of lighting and background\"\n  ]\n}"
+}

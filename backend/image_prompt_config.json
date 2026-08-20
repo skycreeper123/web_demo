@@ -4,25 +4,25 @@
   "mock_result": {
     "subject": "{stem}",
     "scene_summary": "Mock prompt for the reference frame {image_name}",
-    "zh_prompt": "基于输入参考图片生成一张图生图结果，使其表现为当前画面之前的一个更早帧。保持原图中的 {stem}、主体身份、构图、镜头角度、背景布局、色彩关系和整体风格高度一致，只做少量能够体现时间略微前移的变化，例如更早一步的姿态、视线、肢体位置、衣物或头发状态，或更早一点的环境细节。结果应像是同一镜头、同一场景、同一动作链条中的前一时刻，而不是新场景或新故事。不要新增人物或物体，不要改变身份、服装、文字或 logo，不要改变机位和构图，不要出现脸部或手部畸形、背景重构、水印、乱码或不安全内容。",
-    "en_prompt": "Generate an image-to-image result from the input reference frame that represents a plausible moment shortly before the current frame. Keep the original {stem}, subject identity, framing, camera angle, background layout, color relationships, and overall style highly consistent, and make only small temporal-backfill changes such as a slightly earlier pose, gaze direction, limb position, clothing or hair state, or nearby environmental detail. The result should feel like the immediately preceding moment in the same shot rather than a new scene or story beat. Avoid adding new subjects or objects, changing identity, outfit, text, or logo, altering the camera viewpoint or composition, or introducing distortion, background reconstruction, watermarks, unreadable text, or unsafe content.",
+    "zh_prompt": "基于输入图片生成一段短视频，保持原图中的 {stem}、主体身份、构图、镜头视角、背景布局、色彩关系和整体风格一致。让主体产生自然且克制的连续动作，动作幅度小而明确，起始状态与原图高度衔接，结束状态只做轻微推进。镜头运动稳定，可使用轻微推拉、平移或静稳跟随，环境中仅加入与场景一致的细小动态变化。避免新增人物或物体，避免改变身份、服装、文字或 logo，避免出现闪烁、镜头跳变、背景重构、脸部或手部畸形、水印、乱码或不安全内容。",
+    "en_prompt": "Generate a short image-to-video result from the input image while keeping the original {stem}, subject identity, framing, camera viewpoint, background layout, color relationships, and overall visual style consistent. Introduce a small but clear natural motion progression for the main subject, with the starting state closely matching the source image and the ending state advancing only slightly. Keep the camera stable with subtle push, pan, or gentle follow movement if needed, allow only minimal scene-consistent environmental motion, and avoid adding new subjects or objects, changing identity, outfit, text, or logo, or introducing flicker, camera jumps, background reconstruction, face or hand distortion, watermarks, unreadable text, or unsafe content.",
     "keep_unchanged": [
       "subject identity and appearance",
-      "scene layout, framing, and camera angle",
+      "scene layout, framing, and camera viewpoint",
       "background structure and object count",
       "colors, materials, and overall style"
     ],
     "avoid": [
-      "extra subjects or props",
-      "scene redesign, camera change, or background reconstruction",
-      "identity drift, deformation, or implausible temporal jump",
+      "scene redesign or extra subjects",
+      "identity drift or body deformation",
+      "flicker, sudden camera cuts, or background reconstruction",
       "watermarks, gibberish text, or unsafe content"
     ],
     "quality_check": [
-      "the result clearly looks like a moment shortly before the reference frame",
+      "the motion feels natural and continuous",
       "subject identity and structure remain stable",
       "background layout and object positions stay highly consistent",
-      "no distortion, flicker, watermark, or unreadable text"
+      "no flicker, distortion, watermark, or unreadable text"
     ]
   }
 }

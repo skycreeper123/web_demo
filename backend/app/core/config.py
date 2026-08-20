@@ -111,6 +111,14 @@ def api_config_path() -> Path:
     return backend_root() / "api_config.json"
 
 
+def comfy_config_path() -> Path:
+    return backend_root() / "comfyui_comm_config.json"
+
+
+def comfy_workflow_manifest_dir() -> Path:
+    return project_root() / "workflow"
+
+
 def _prompt_config_filename(kind: str) -> str:
     if kind == IMAGE_PROMPT_KIND:
         return "image_prompt_config.json"
@@ -128,96 +136,128 @@ def prompt_config_path(kind: str = IMAGE_PROMPT_KIND) -> Path:
 def default_prompt_config(kind: str) -> dict[str, Any]:
     if kind == IMAGE_PROMPT_KIND:
         return {
-            "system_prompt": """You are an expert image-to-image prompt designer for temporal backfill and first-frame prequel generation.
-You will receive one reference image. That image should be treated as the first frame of an existing or planned video clip.
+            "system_prompt": """You are an expert image-to-video prompt director and prompt generator.
 
-Your job is to generate production-ready prompts for an Image-to-Image model so that the model creates a new image representing a plausible moment shortly before the reference frame.
+Your job is to observe the input image and generate production-ready prompts for an Image-to-Video model.
 
 Core objective:
-Create an earlier preceding frame that can serve as a natural pre-roll frame for a first-frame-to-last-frame video workflow.
+Animate the existing image naturally without redesigning it into a new scene.
 
 Rules:
-1. Treat the input image as the future reference frame and the single source of truth. Do not invent important subjects, props, text, logos, background structures, or events that are not clearly supported by the image.
-2. The generated target image must feel like an immediately earlier moment, not a different scene, different shot, or different story beat.
-3. Preserve the original subject identity, facial features, hairstyle, clothing, colors, materials, object shapes, object count, scene layout, camera angle, framing, composition, lighting logic, and overall visual style as much as possible.
-4. Infer a conservative earlier state from the visible pose, motion cues, gaze direction, object placement, cloth or hair movement, and environmental cues. If the motion is ambiguous, choose the smallest believable rewind rather than a dramatic change.
-5. The prompt should function as controlled temporal editing direction, not as a full scene rewrite. Focus on: what the current frame shows, what the immediately earlier frame should look like, which subtle pose or state changes imply that it happens slightly before the reference frame, what must remain unchanged, and what artifacts or unsafe outcomes must be avoided.
-6. The Chinese prompt must clearly include: that the result is generated from the input reference image; that the target should be an earlier preceding frame before the current frame; main subject; inferred earlier state or pose; temporal relation to the current frame; composition and camera stability; scene and style consistency; unchanged elements; and negative constraints.
-7. The English prompt should be natural, concise but complete, and ready to submit directly to an image-to-image model.
-8. Include strong negative constraints against identity drift, face or hand distortion, body deformation, clothing changes, background reconstruction, object count changes, camera viewpoint changes, text corruption, logo changes, watermarks, unreadable text, private or sensitive information, or unsafe content.
-9. If the image contains a person, prioritize face identity, hairstyle, clothing, hands, body proportion, and plausible reverse-pose continuity.
-10. If the image contains a product, package, document, logo, or visible text, prioritize exact consistency of shape, material, color, logo, and text content while only making minimal temporal state changes.
-11. If the image is a landscape, architecture, or still life, prioritize layout stability, structure preservation, and only subtle earlier-state variation.
-12. Keep the prompt clear but restrained. Do not overbuild a new story, a new camera shot, or a large off-screen cause.
-13. Return strict JSON only. Do not use Markdown. Do not add explanations.
+1. Treat the input image as the single source of truth. Do not invent important subjects, props, text, logos, background structures, or events that are not clearly supported by the image.
+2. Preserve the original subject identity, facial features, hairstyle, clothing, colors, materials, object shapes, object count, scene layout, composition, lighting logic, and overall visual style unless tiny motion-related variation is necessary.
+3. The prompt should function as animation direction, not as a static image caption. Focus on:
+   - what must remain unchanged,
+   - who or what should move,
+   - how the motion happens,
+   - how the camera behaves,
+   - what subtle environmental motion is allowed,
+   - what errors and unsafe outcomes must be avoided.
+4. Prefer plausible motion that fits the image. If the action is ambiguous, choose subtle, natural, restrained motion rather than dramatic scene changes.
+5. The Chinese prompt must clearly include:
+   - preserving the original image,
+   - main subject,
+   - core action,
+   - motion direction, range, and speed,
+   - initial state and final state,
+   - camera language,
+   - timing and rhythm,
+   - environmental motion,
+   - composition and spatial stability,
+   - visual style and quality,
+   - mood,
+   - unchanged elements,
+   - negative constraints.
+6. The English prompt should be natural, concise but complete, and ready to submit directly to an image-to-video model.
+7. Include strong negative constraints against:
+   - identity drift,
+   - face, hand, or body distortion,
+   - clothing changes,
+   - background reconstruction,
+   - object count changes,
+   - flicker,
+   - sudden camera cuts,
+   - watermarks,
+   - unreadable or garbled text,
+   - private or sensitive information,
+   - unsafe content.
+8. If the image contains a person, prioritize face, identity, clothing, hands, and body stability.
+9. If the image contains a product, package, document, logo, or visible text, prioritize exact consistency of shape, material, color, logo, and text content.
+10. If the image is a landscape, architecture, or still life, prioritize layout stability, structure preservation, object count consistency, and natural environmental motion.
+11. Keep the prompt clear but restrained. Do not overbuild a new story.
+12. Return strict JSON only. Do not use Markdown. Do not add explanations.
 
 JSON schema:
 {
   "subject": "main subject",
-  "scene_summary": "brief description of the input reference frame",
-  "zh_prompt": "complete Chinese image-to-image prompt for generating an earlier preceding frame",
-  "en_prompt": "complete English image-to-image prompt for generating an earlier preceding frame",
+  "scene_summary": "brief description of the input image",
+  "zh_prompt": "complete Chinese image-to-video prompt",
+  "en_prompt": "complete English image-to-video prompt",
   "keep_unchanged": ["elements that must remain unchanged"],
   "avoid": ["problems to avoid"],
   "quality_check": ["items to check after generation"]
 }
 """,
-            "user_text": """Generate an image-to-image prompt based on this input reference image.
-
-Important context:
-- The image should be treated as the first frame of a video.
-- Your goal is not to stylize it or redesign it.
-- Your goal is to create a prompt for generating a plausible earlier frame that happens shortly before this frame, so the result can be used as the preceding frame in a first-frame / last-frame video workflow.
+            "user_text": """Generate an image-to-video prompt based on this input image.
 
 Work in this order:
 1. Briefly identify the visible scene and the main subject the user will care about most.
-2. Infer the most plausible immediately earlier state from the current frame.
-3. Rewind the moment slightly: adjust pose, gaze, limb position, object position, cloth or hair motion, or environmental details only as much as needed to imply that this new frame happens just before the reference frame.
-4. Keep camera angle, framing, composition, subject identity, scene layout, object count, lighting logic, and overall style as stable as possible.
+2. Decide the minimal natural motion that can turn the still image into a short video without redesigning the scene.
+3. Describe how the motion starts and how it ends, including direction, range, and speed.
+4. Add camera language, timing and rhythm, and subtle environmental motion that fit the image.
 5. Explicitly state what must remain unchanged.
 6. Add concise negative constraints and quality-check items.
 
 Requirements for the Chinese prompt:
-- Start by stating that the result is generated from the input reference image and should represent an earlier preceding frame before the current frame.
-- Clearly include: subject, what the current frame suggests, what the earlier frame should look like, the temporal relation to the reference frame, composition and camera stability, scene and style consistency, unchanged elements, and things to avoid.
-- Write it as controlled temporal backfill direction, not as a rewritten scene description.
+- Start by stating that the video is generated from the input image and that the original subject and scene should remain consistent.
+- Clearly include:
+  - subject,
+  - core action,
+  - motion direction, range, and speed,
+  - initial state and final state,
+  - camera language,
+  - timing and rhythm,
+  - environmental motion,
+  - composition and spatial stability,
+  - visual style and quality,
+  - mood,
+  - unchanged elements,
+  - things to avoid.
+- Write it as animation direction, not as a rewritten scene description.
 - Keep it clear, complete, and restrained.
-- Do not introduce new unseen subjects, props, or major narrative events.
 
 Requirements for the English prompt:
 - Write a natural, model-ready paragraph.
-- Emphasize that this is a frame occurring shortly before the reference frame.
-- Emphasize continuity more than creativity.
+- Emphasize animation direction more than static scene description.
 - Keep the prompt complete but not verbose.
+- Do not introduce new unseen subjects, props, or story beats.
 
 Quality expectations:
-- The generated earlier frame should look highly consistent with the reference frame.
-- The temporal difference should be small but meaningful.
-- The result should help a first-frame / last-frame video workflow feel more continuous.
-- The prompt should reduce identity drift, deformation, background changes, text corruption, and unsafe output.
+- The prompt should help the video remain faithful to the original image.
+- The prompt should reduce identity drift, deformation, flicker, background changes, and unsafe output.
 """,
             "mock_result": {
                 "subject": "{stem}",
                 "scene_summary": "Mock prompt for the reference frame {image_name}",
-                "zh_prompt": "基于输入参考图片生成一张图生图结果，使其表现为当前画面之前的一个更早帧。保持原图中的 {stem}、主体身份、构图、镜头角度、背景布局、色彩关系和整体风格高度一致，只做少量能够体现时间略微前移的变化，例如更早一步的姿态、视线、肢体位置、衣物或头发状态，或更早一点的环境细节。结果应像是同一镜头、同一场景、同一动作链条中的前一时刻，而不是新场景或新故事。不要新增人物或物体，不要改变身份、服装、文字或 logo，不要改变机位和构图，不要出现脸部或手部畸形、背景重构、水印、乱码或不安全内容。",
-                "en_prompt": "Generate an image-to-image result from the input reference frame that represents a plausible moment shortly before the current frame. Keep the original {stem}, subject identity, framing, camera angle, background layout, color relationships, and overall style highly consistent, and make only small temporal-backfill changes such as a slightly earlier pose, gaze direction, limb position, clothing or hair state, or nearby environmental detail. The result should feel like the immediately preceding moment in the same shot rather than a new scene or story beat. Avoid adding new subjects or objects, changing identity, outfit, text, or logo, altering the camera viewpoint or composition, or introducing distortion, background reconstruction, watermarks, unreadable text, or unsafe content.",
+                "zh_prompt": "基于输入图片生成一段短视频，保持原图中的 {stem}、主体身份、构图、镜头视角、背景布局、色彩关系和整体风格一致。让主体产生自然且克制的连续动作，动作幅度小而明确，起始状态与原图高度衔接，结束状态只做轻微推进。镜头运动稳定，可使用轻微推拉、平移或静稳跟随，环境中仅加入与场景一致的细小动态变化。避免新增人物或物体，避免改变身份、服装、文字或 logo，避免出现闪烁、镜头跳变、背景重构、脸部或手部畸形、水印、乱码或不安全内容。",
+                "en_prompt": "Generate a short image-to-video result from the input image while keeping the original {stem}, subject identity, framing, camera viewpoint, background layout, color relationships, and overall visual style consistent. Introduce a small but clear natural motion progression for the main subject, with the starting state closely matching the source image and the ending state advancing only slightly. Keep the camera stable with subtle push, pan, or gentle follow movement if needed, allow only minimal scene-consistent environmental motion, and avoid adding new subjects or objects, changing identity, outfit, text, or logo, or introducing flicker, camera jumps, background reconstruction, face or hand distortion, watermarks, unreadable text, or unsafe content.",
                 "keep_unchanged": [
                     "subject identity and appearance",
-                    "scene layout, framing, and camera angle",
+                    "scene layout, framing, and camera viewpoint",
                     "background structure and object count",
                     "colors, materials, and overall style",
                 ],
                 "avoid": [
-                    "extra subjects or props",
-                    "scene redesign, camera change, or background reconstruction",
-                    "identity drift, deformation, or implausible temporal jump",
+                    "scene redesign or extra subjects",
+                    "identity drift or body deformation",
+                    "flicker, sudden camera cuts, or background reconstruction",
                     "watermarks, gibberish text, or unsafe content",
                 ],
                 "quality_check": [
-                    "the result clearly looks like a moment shortly before the reference frame",
+                    "the motion feels natural and continuous",
                     "subject identity and structure remain stable",
                     "background layout and object positions stay highly consistent",
-                    "no distortion, watermark, or unreadable text",
+                    "no flicker, distortion, watermark, or unreadable text",
                 ],
             },
         }
@@ -428,6 +468,7 @@ def default_api_config(kind: str | None = None) -> dict[str, Any]:
             "base_url": base_url,
             "model": model,
             "output_dir": default_output_root_text(IMAGE_PROMPT_KIND),
+            "source_root_dir": "",
             "use_mock": True,
             "overwrite": False,
         },
@@ -436,6 +477,7 @@ def default_api_config(kind: str | None = None) -> dict[str, Any]:
             "base_url": base_url,
             "model": model,
             "output_dir": default_output_root_text(IMAGE_EDIT_PROMPT_KIND),
+            "source_root_dir": "",
             "use_mock": True,
             "overwrite": False,
         },
@@ -444,6 +486,8 @@ def default_api_config(kind: str | None = None) -> dict[str, Any]:
             "base_url": base_url,
             "model": model,
             "output_dir": default_output_root_text(VIDEO_PROMPT_KIND),
+            "video_source_root_dir": "",
+            "reference_source_root_dir": "",
             "use_mock": True,
             "overwrite": False,
         },
@@ -483,10 +527,20 @@ def _merge_api_config(config: dict[str, Any] | None) -> dict[str, Any]:
         VIDEO_PROMPT_KIND: _merge_dict(defaults[VIDEO_PROMPT_KIND], raw.get(VIDEO_PROMPT_KIND)),
     }
     merged[IMAGE_PROMPT_KIND]["output_dir"] = _normalize_output_path_text(merged[IMAGE_PROMPT_KIND].get("output_dir"))
+    merged[IMAGE_PROMPT_KIND]["source_root_dir"] = _normalize_output_path_text(merged[IMAGE_PROMPT_KIND].get("source_root_dir"))
     merged[IMAGE_EDIT_PROMPT_KIND]["output_dir"] = _normalize_output_path_text(
         merged[IMAGE_EDIT_PROMPT_KIND].get("output_dir")
     )
+    merged[IMAGE_EDIT_PROMPT_KIND]["source_root_dir"] = _normalize_output_path_text(
+        merged[IMAGE_EDIT_PROMPT_KIND].get("source_root_dir")
+    )
     merged[VIDEO_PROMPT_KIND]["output_dir"] = _normalize_output_path_text(merged[VIDEO_PROMPT_KIND].get("output_dir"))
+    merged[VIDEO_PROMPT_KIND]["video_source_root_dir"] = _normalize_output_path_text(
+        merged[VIDEO_PROMPT_KIND].get("video_source_root_dir")
+    )
+    merged[VIDEO_PROMPT_KIND]["reference_source_root_dir"] = _normalize_output_path_text(
+        merged[VIDEO_PROMPT_KIND].get("reference_source_root_dir")
+    )
     for key, value in raw.items():
         if key not in merged:
             merged[key] = value
@@ -537,8 +591,87 @@ def save_api_config(kind: str, config: dict[str, Any]) -> dict[str, Any]:
     current = load_api_config()
     current[kind] = _merge_dict(default_api_config(kind), config if isinstance(config, dict) else {})
     current[kind]["output_dir"] = _normalize_output_path_text(current[kind].get("output_dir"))
+    if kind in {IMAGE_PROMPT_KIND, IMAGE_EDIT_PROMPT_KIND}:
+        current[kind]["source_root_dir"] = _normalize_output_path_text(current[kind].get("source_root_dir"))
+    if kind == VIDEO_PROMPT_KIND:
+        current[kind]["video_source_root_dir"] = _normalize_output_path_text(current[kind].get("video_source_root_dir"))
+        current[kind]["reference_source_root_dir"] = _normalize_output_path_text(current[kind].get("reference_source_root_dir"))
     path.write_text(json.dumps(current, ensure_ascii=False, indent=2), encoding="utf-8")
     return dict(current[kind])
+
+
+def default_comfy_config() -> dict[str, Any]:
+    return {
+        "comfy_base_url": "http://127.0.0.1:8188",
+        "comfy_root_dir": "",
+        "comfy_input_dir": "",
+        "comfy_output_dir": "",
+        "temp_dir": "output/comfy_temp",
+        "path_style": "",
+        "request_timeout_sec": 30,
+        "job_timeout_sec": 1800,
+        "poll_interval_sec": 2,
+        "ws_enabled": True,
+        "workflow_manifest_dir": "workflow",
+    }
+
+
+def _normalize_comfy_path_text(value: Any) -> str:
+    text = str(value or "").strip()
+    if not text:
+        return ""
+    path = Path(text)
+    if path.is_absolute():
+        return str(path).replace("\\", "/")
+    return path.as_posix()
+
+
+def _merge_comfy_config(config: dict[str, Any] | None) -> dict[str, Any]:
+    defaults = default_comfy_config()
+    raw = config if isinstance(config, dict) else {}
+    merged = _merge_dict(defaults, raw)
+    for key in ("comfy_root_dir", "comfy_input_dir", "comfy_output_dir", "temp_dir", "workflow_manifest_dir"):
+        merged[key] = _normalize_comfy_path_text(merged.get(key))
+    if str(merged.get("workflow_manifest_dir") or "").strip().lower() in {
+        "backend/comfyui_workflows",
+        "comfyui_workflows",
+    }:
+        merged["workflow_manifest_dir"] = defaults["workflow_manifest_dir"]
+    merged["comfy_base_url"] = str(merged.get("comfy_base_url") or defaults["comfy_base_url"]).rstrip("/")
+    merged["path_style"] = str(merged.get("path_style") or "").strip().lower()
+    if merged["path_style"] not in {"", "windows", "linux"}:
+        merged["path_style"] = ""
+    for key in ("request_timeout_sec", "job_timeout_sec", "poll_interval_sec"):
+        try:
+            merged[key] = int(merged.get(key) or defaults[key])
+        except (TypeError, ValueError):
+            merged[key] = defaults[key]
+    merged["ws_enabled"] = bool(merged.get("ws_enabled", True))
+    return merged
+
+
+def load_comfy_config() -> dict[str, Any]:
+    path = comfy_config_path()
+    if not path.exists():
+        defaults = _merge_comfy_config({})
+        path.write_text(json.dumps(defaults, ensure_ascii=False, indent=2), encoding="utf-8")
+        return defaults
+    try:
+        raw = json.loads(path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError:
+        return _merge_comfy_config({})
+    normalized = _merge_comfy_config(raw if isinstance(raw, dict) else {})
+    if normalized != raw:
+        path.write_text(json.dumps(normalized, ensure_ascii=False, indent=2), encoding="utf-8")
+    return normalized
+
+
+def save_comfy_config(config: dict[str, Any]) -> dict[str, Any]:
+    path = comfy_config_path()
+    path.parent.mkdir(parents=True, exist_ok=True)
+    normalized = _merge_comfy_config(config)
+    path.write_text(json.dumps(normalized, ensure_ascii=False, indent=2), encoding="utf-8")
+    return normalized
 
 
 def load_defaults() -> DemoDefaults:

@@ -1,0 +1,33 @@
+{
+  "subject": "demo edit v2",
+  "source_summary": "Mock image-edit prompt for demo_edit_v2.png",
+  "edit_goal": "Apply a conservative image edit that enhances the visual quality of demo edit v2 while preserving the original composition and identity.",
+  "zh_prompt": "基于输入图片进行图生图编辑，尽量保持原图中的 demo edit v2、构图、背景布局、物体数量与整体风格不变。仅对主体相关的质感、光影层次与局部视觉重点做有限且可控的优化增强，使结果更精致、更统一，但不要重构场景或新增无关元素。编辑范围以主体与关键视觉区域为主，整体保持自然写实和高细节质感。避免改变主体身份、姿态、文字、logo、背景结构或数量关系，避免未指定区域被误改，避免出现脸部或手部畸形、边缘脏污、伪影、水印、乱码文字或不安全内容。",
+  "en_prompt": "Edit the input image with a minimal, controlled enhancement while preserving the original demo edit v2, composition, background layout, object count, and overall visual style. Refine the subject-related texture, lighting hierarchy, and focal details only where beneficial, keeping the scene recognizable and avoiding a full redesign. Keep the edit limited to the key visual regions, maintain a natural high-detail look, and avoid identity changes, pose drift, text or logo changes, background reconstruction, unrelated region edits, distortion, artifacts, watermarks, unreadable text, or unsafe content.",
+  "positive_prompt": "Edit the input image with a minimal, controlled enhancement while preserving the original demo edit v2, composition, background layout, object count, and overall visual style. Refine the subject-related texture, lighting hierarchy, and focal details only where beneficial, keeping the scene recognizable and avoiding a full redesign. Keep the edit limited to the key visual regions, maintain a natural high-detail look, and avoid identity changes, pose drift, text or logo changes, background reconstruction, unrelated region edits, distortion, artifacts, watermarks, unreadable text, or unsafe content.",
+  "negative_prompt": "over-redesign or scene rewriting, identity drift or body distortion, unintended changes to unrelated regions, artifacts, watermarks, gibberish text, or unsafe content, identity drift, face distortion, hand distortion, body deformation, text corruption, logo change, background reconstruction, unwanted region edits, artifacts, watermark, garbled text, unsafe content",
+  "keep_unchanged": [
+    "subject identity and core appearance",
+    "composition and background layout",
+    "object count and spatial relationships",
+    "text, logo, and overall scene structure"
+  ],
+  "add_or_emphasize": [
+    "controlled texture refinement",
+    "cleaner lighting hierarchy",
+    "more focused visual emphasis on the main subject"
+  ],
+  "avoid": [
+    "over-redesign or scene rewriting",
+    "identity drift or body distortion",
+    "unintended changes to unrelated regions",
+    "artifacts, watermarks, gibberish text, or unsafe content"
+  ],
+  "quality_check": [
+    "the edited result still clearly matches the source image",
+    "only intended regions or attributes are changed",
+    "subject identity and layout remain stable",
+    "no distortion, artifact, watermark, or unreadable text"
+  ],
+  "raw_response": "{\n  \"subject\": \"demo edit v2\",\n  \"source_summary\": \"Mock image-edit prompt for demo_edit_v2.png\",\n  \"edit_goal\": \"Apply a conservative image edit that enhances the visual quality of demo edit v2 while preserving the original composition and identity.\",\n  \"zh_prompt\": \"基于输入图片进行图生图编辑，尽量保持原图中的 demo edit v2、构图、背景布局、物体数量与整体风格不变。仅对主体相关的质感、光影层次与局部视觉重点做有限且可控的优化增强，使结果更精致、更统一，但不要重构场景或新增无关元素。编辑范围以主体与关键视觉区域为主，整体保持自然写实和高细节质感。避免改变主体身份、姿态、文字、logo、背景结构或数量关系，避免未指定区域被误改，避免出现脸部或手部畸形、边缘脏污、伪影、水印、乱码文字或不安全内容。\",\n  \"en_prompt\": \"Edit the input image with a minimal, controlled enhancement while preserving the original demo edit v2, composition, background layout, object count, and overall visual style. Refine the subject-related texture, lighting hierarchy, and focal details only where beneficial, keeping the scene recognizable and avoiding a full redesign. Keep the edit limited to the key visual regions, maintain a natural high-detail look, and avoid identity changes, pose drift, text or logo changes, background reconstruction, unrelated region edits, distortion, artifacts, watermarks, unreadable text, or unsafe content.\",\n  \"keep_unchanged\": [\n    \"subject identity and core appearance\",\n    \"composition and background layout\",\n    \"object count and spatial relationships\",\n    \"text, logo, and overall scene structure\"\n  ],\n  \"add_or_emphasize\": [\n    \"controlled texture refinement\",\n    \"cleaner lighting hierarchy\",\n    \"more focused visual emphasis on the main subject\"\n  ],\n  \"avoid\": [\n    \"over-redesign or scene rewriting\",\n    \"identity drift or body distortion\",\n    \"unintended changes to unrelated regions\",\n    \"artifacts, watermarks, gibberish text, or unsafe content\"\n  ],\n  \"quality_check\": [\n    \"the edited result still clearly matches the source image\",\n    \"only intended regions or attributes are changed\",\n    \"subject identity and layout remain stable\",\n    \"no distortion, artifact, watermark, or unreadable text\"\n  ]\n}"
+}
