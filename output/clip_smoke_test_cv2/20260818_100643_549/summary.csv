@@ -1,2 +1,0 @@
-detail,output_video,preview_image,source,status
-保留前 3 秒,D:\AIGC\web_demo\output\clip_smoke_test_cv2\20260818_100643_549\output_first_3s\trimmed\A001_first_3s.mp4,D:\AIGC\web_demo\output\clip_smoke_test_cv2\20260818_100643_549\output_first_3s\last_frames\A001_first_3s_last_frame.jpg,D:\AIGC\web_demo\batch_editing\input_videos\A001.mp4,done

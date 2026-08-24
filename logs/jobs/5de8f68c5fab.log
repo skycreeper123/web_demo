@@ -1,8 +1,0 @@
-2026-08-18 14:23:47,891 | INFO     | web_demo.job.5de8f68c5fab | Job created. kind=image total=1 log_file=D:\AIGC\web_demo\logs\jobs\5de8f68c5fab.log
-2026-08-18 14:23:47,892 | INFO     | web_demo.job.5de8f68c5fab | Starting image prompt job. items=1 output_root=D:\AIGC\web_demo\output\_codex_logging_verify\image
-2026-08-18 14:23:47,894 | INFO     | web_demo.job.5de8f68c5fab | Status changed: queued -> running
-2026-08-18 14:23:47,897 | INFO     | web_demo.job.5de8f68c5fab | Processing: log_demo.png
-2026-08-18 14:23:47,901 | INFO     | web_demo.job.5de8f68c5fab | Saved: log_demo.prompt.json / log_demo.prompt.txt
-2026-08-18 14:23:47,905 | INFO     | web_demo.job.5de8f68c5fab | Status changed: running -> completed
-2026-08-18 14:23:47,905 | INFO     | web_demo.job.5de8f68c5fab | Output directory: D:\AIGC\web_demo\output\_codex_logging_verify\image\20260818_142347_895
-2026-08-18 14:23:47,906 | INFO     | web_demo.job.5de8f68c5fab | Done. Output: D:\AIGC\web_demo\output\_codex_logging_verify\image\20260818_142347_895

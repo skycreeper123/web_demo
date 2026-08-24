@@ -110,7 +110,7 @@
 
 推荐做法：
 
-- 对外统一传递逻辑路径，例如 `jobs/<job_id>/input.png`
+- 对外统一传递逻辑路径，例如 `jobs/<job_id>/input.<ext>`
 - 在通信模块内部根据当前平台解析为真实文件系统路径
 - 工作流模板中优先使用 ComfyUI 可识别的相对文件引用，而不是 App 本机绝对路径
 
@@ -274,13 +274,18 @@ freeMemory(request?: FreeMemoryRequest): Promise<void>
 
 建议将每条任务的输入媒体落盘到如下位置：
 
-- `input/jobs/<job_id>/input.png`
-- `input/jobs/<job_id>/source.mp4`
+- `input/jobs/<job_id>/input.<ext>`
+- `input/jobs/<job_id>/source.<ext>`
 
 对应真实路径示例：
 
-- Windows：`C:/ComfyUI/input/jobs/<job_id>/input.png`
-- Linux：`/opt/ComfyUI/input/jobs/<job_id>/input.png`
+- Windows：`C:/ComfyUI/input/jobs/<job_id>/input.<ext>`
+- Linux：`/opt/ComfyUI/input/jobs/<job_id>/input.<ext>`
+
+说明：
+
+- 图片输入保留原始图片后缀，例如 `.png` / `.jpg`
+- 视频输入保留原始视频后缀，例如 `.mp4` / `.mov`
 
 ### 12.3 工作流中的引用方式
 
@@ -291,13 +296,13 @@ freeMemory(request?: FreeMemoryRequest): Promise<void>
   "12": {
     "class_type": "LoadImage",
     "inputs": {
-      "image": "jobs/job_20260818_0001/input.png"
+      "image": "jobs/job_20260818_0001/input.<ext>"
     }
   },
   "13": {
     "class_type": "LoadVideo",
     "inputs": {
-      "file": "jobs/job_20260818_0001/source.mp4"
+      "file": "jobs/job_20260818_0001/source.<ext>"
     }
   }
 }
@@ -469,12 +474,19 @@ freeMemory(request?: FreeMemoryRequest): Promise<void>
 
 推荐输出目录约定：
 
-- `output/video/jobs/<job_id>/result_*.mp4`
+- `output/video/jobs/<job_id>/result_*.<ext>`
 
 对应真实路径示例：
 
-- Windows：`C:/ComfyUI/output/video/jobs/<job_id>/result_*.mp4`
-- Linux：`/opt/ComfyUI/output/video/jobs/<job_id>/result_*.mp4`
+- Windows：`C:/ComfyUI/output/video/jobs/<job_id>/result_*.<ext>`
+- Linux：`/opt/ComfyUI/output/video/jobs/<job_id>/result_*.<ext>`
+
+说明：
+
+- 主输出文件由结果回收逻辑按历史输出优先定位，不应依赖固定后缀
+- 如果要“严格无损”，推荐 `MKV + FFV1`
+- 如果要兼顾兼容性，可用 `MOV + ProRes`，但它不是严格无损
+- `MP4 + H.264/H.265` 属于有损压缩，不适合“完全不失真”的要求
 
 ## 17. 错误处理规范
 

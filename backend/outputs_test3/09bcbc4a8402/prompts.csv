@@ -1,2 +1,0 @@
-image,subject,scene_summary,zh_prompt,en_prompt,json_file,txt_file
-demo.png,demo,Mock prompt for demo.png,,,web_demo\backend\outputs_test3\09bcbc4a8402\demo.prompt.json,web_demo\backend\outputs_test3\09bcbc4a8402\demo.prompt.txt

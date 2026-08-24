@@ -8,6 +8,22 @@ from .path_resolver import resolve_comfy_output_dir
 
 MEDIA_KEYS = ("videos", "gifs", "images", "files")
 MEDIA_SUFFIXES = (".mp4", ".mov", ".avi", ".mkv", ".webm", ".gif")
+# 主输出优先级只用于“结果文件选择”，不代表编码本身是否无损。
+VIDEO_SUFFIX_PRIORITY = {
+    ".mkv": 0,
+    ".mov": 1,
+    ".mp4": 2,
+    ".m4v": 3,
+    ".webm": 4,
+    ".avi": 5,
+    ".gif": 50,
+}
+IMAGE_SUFFIX_PRIORITY = {
+    ".png": 100,
+    ".webp": 101,
+    ".jpg": 102,
+    ".jpeg": 103,
+}
 
 
 def _history_record(history_payload: dict[str, Any], prompt_id: str) -> dict[str, Any]:
@@ -73,6 +89,21 @@ def _candidate_files_from_prefix(output_root: Path, output_prefix: str) -> list[
     return sorted(results)
 
 
+def _candidate_sort_key(path: Path) -> tuple[int, int, str]:
+    suffix = path.suffix.lower()
+    if suffix in VIDEO_SUFFIX_PRIORITY:
+        group = 0
+        rank = VIDEO_SUFFIX_PRIORITY[suffix]
+    else:
+        group = 1
+        rank = IMAGE_SUFFIX_PRIORITY.get(suffix, 999)
+    try:
+        size_rank = -path.stat().st_size
+    except OSError:
+        size_rank = 0
+    return (group + rank, size_rank, path.name.lower())
+
+
 def collect_result(
     *,
     history_payload: dict[str, Any],
@@ -96,6 +127,8 @@ def collect_result(
     if not existing:
         raise RuntimeError("结果文件不存在或不可读。")
 
+    # 先按“视频优先、较大的成片优先”排序，尽量避免把预览图或中间图当主输出。
+    existing.sort(key=_candidate_sort_key)
     primary = existing[0]
     items = [{"name": path.name, "path": str(path)} for path in existing]
     return {
@@ -103,4 +136,3 @@ def collect_result(
         "output_dir": str(primary.parent),
         "items": items,
     }
-

@@ -67,11 +67,13 @@ FRONTEND_DIR = Path(__file__).resolve().parents[2] / "frontend"
 DEFAULTS = load_defaults()
 APP_LOGGER = logging.getLogger("web_demo.app")
 HTTP_LOGGER = logging.getLogger("web_demo.http")
+# SQLite 任务状态库，负责持久化任务快照、日志、输出和失败详情。
 JOB_DATABASE_PATH = Path(__file__).resolve().parents[2] / "jobs.sqlite3"
 
 
 @dataclass
 class JobState:
+    # JobState 是前后端共享的任务快照，前端轮询时直接读取这一份结构。
     id: str
     kind: str
     status: str = "queued"
@@ -90,6 +92,7 @@ class JobState:
 
 
 def _infer_log_level(message: str) -> int:
+    # 根据文本前缀自动推断日志级别，避免每次写日志都手动指定 level。
     normalized = str(message or "").strip().lower()
     if not normalized:
         return logging.INFO
@@ -102,6 +105,7 @@ def _infer_log_level(message: str) -> int:
 
 class JobStore:
     def __init__(self, database_path: Path = JOB_DATABASE_PATH) -> None:
+        # 内存缓存用于快速读取，SQLite 用于持久化和重启恢复。
         self._lock = threading.Lock()
         self._jobs: dict[str, JobState] = {}
         self._database_path = database_path
@@ -114,6 +118,7 @@ class JobStore:
         return connection
 
     def _initialize_database(self) -> None:
+        # 第一次启动时创建表结构；WAL 模式能提高并发读写的稳定性。
         self._database_path.parent.mkdir(parents=True, exist_ok=True)
         with self._connect() as connection:
             connection.execute("PRAGMA journal_mode=WAL")
@@ -148,6 +153,7 @@ class JobStore:
         return decoded if isinstance(decoded, type(fallback)) else fallback
 
     def _restore_jobs(self) -> None:
+        # 启动时从 SQLite 恢复历史任务；未完成任务会被降级为失败态。
         with self._connect() as connection:
             rows = connection.execute("SELECT * FROM jobs ORDER BY created_at").fetchall()
 
@@ -186,6 +192,7 @@ class JobStore:
             self._persist(self._jobs[job_id])
 
     def _persist(self, job: JobState) -> None:
+        # 每次状态变更都写回整份快照，保证实现简单且可恢复。
         payload = (
             job.id,
             job.kind,
@@ -230,6 +237,7 @@ class JobStore:
             )
 
     def create(self, *, kind: str, total: int) -> JobState:
+        # 创建任务时同时生成日志文件路径，并把初始快照写入数据库。
         job_id = uuid.uuid4().hex[:12]
         job = JobState(
             id=job_id,
@@ -248,6 +256,7 @@ class JobStore:
             return self._jobs.get(job_id)
 
     def update(self, job_id: str, **changes: Any) -> JobState:
+        # 更新任务字段后立即持久化，避免任务中途退出导致状态丢失。
         with self._lock:
             job = self._jobs[job_id]
             previous_status = job.status
@@ -270,6 +279,7 @@ class JobStore:
         return job
 
     def append_log(self, job_id: str, message: str, level: int | None = None) -> None:
+        # 日志既写入任务快照，也写入单独的任务日志文件。
         text = str(message or "").strip()
         if not text:
             return
@@ -281,18 +291,21 @@ class JobStore:
         get_job_logger(job_id, kind).log(level if level is not None else _infer_log_level(text), text)
 
     def replace_outputs(self, job_id: str, outputs: list[dict[str, Any]]) -> None:
+        # 输出文件列表用于前端“结果文件”区域和文件下载接口。
         with self._lock:
             job = self._jobs[job_id]
             job.outputs = outputs
             self._persist(job)
 
     def replace_failures(self, job_id: str, failures: list[dict[str, Any]]) -> None:
+        # 失败项保留行号、阶段和错误码，方便失败续跑与导出。
         with self._lock:
             job = self._jobs[job_id]
             job.failures = failures
             self._persist(job)
 
     def merge_meta(self, job_id: str, **changes: Any) -> JobState:
+        # meta 保存运行时上下文，例如原始提交参数、Comfy 健康检查和当前行号。
         with self._lock:
             job = self._jobs[job_id]
             merged = dict(job.meta)
@@ -306,6 +319,7 @@ class JobStore:
             return job
 
     def has_active_jobs(self) -> bool:
+        # 只有没有活动任务时，浏览器会话断开才允许自动关闭服务。
         terminal_statuses = {"completed", "partial", "failed", "cancelled", "timeout"}
         with self._lock:
             return any(job.status not in terminal_statuses for job in self._jobs.values())
@@ -316,6 +330,7 @@ STORE = JobStore()
 
 class BrowserSessionStore:
     def __init__(self) -> None:
+        # 浏览器会话只是用于控制服务生命周期，不参与业务任务状态保存。
         self._lock = threading.Lock()
         self._sessions: dict[str, float] = {}
         self._had_browser_session = False
@@ -362,6 +377,7 @@ SESSION_SWEEP_INTERVAL_SECONDS = 5.0
 
 
 def json_response(handler: BaseHTTPRequestHandler, status: int, payload: Any) -> None:
+    # 统一 JSON 返回格式，避免各路由重复写 header。
     data = json.dumps(payload, ensure_ascii=False, indent=2).encode("utf-8")
     handler.send_response(status)
     handler.send_header("Content-Type", "application/json; charset=utf-8")
@@ -377,6 +393,7 @@ def text_response(
     content: str,
     content_type: str = "text/plain; charset=utf-8",
 ) -> None:
+    # 文本文件和调试内容走 UTF-8 文本响应。
     data = content.encode("utf-8")
     handler.send_response(status)
     handler.send_header("Content-Type", content_type)
@@ -392,6 +409,7 @@ def bytes_response(
     content: bytes,
     content_type: str = "application/octet-stream",
 ) -> None:
+    # 二进制文件直接回传，例如视频、图片和其他非文本产物。
     handler.send_response(status)
     handler.send_header("Content-Type", content_type)
     handler.send_header("Content-Length", str(len(content)))
@@ -407,6 +425,7 @@ def read_body_json(handler: BaseHTTPRequestHandler) -> dict[str, Any]:
 
 
 def open_folder(path: Path) -> None:
+    # 按平台打开输出目录，Windows 走 startfile，Linux / macOS 走系统打开器。
     APP_LOGGER.info("Opening folder: %s", path)
     if hasattr(os, "startfile"):
         os.startfile(str(path))
@@ -428,12 +447,14 @@ def open_folder(path: Path) -> None:
 
 
 def job_snapshot(job: JobState) -> dict[str, Any]:
+    # 前端轮询时读取的是可序列化快照，而不是原始 dataclass 对象。
     data = asdict(job)
     data["outputs_count"] = len(job.outputs)
     return data
 
 
 def start_browser_session_reaper(server: ThreadingHTTPServer) -> None:
+    # 后台定时检查是否还有浏览器会话和活跃任务，满足条件才自动退出。
     def worker() -> None:
         while True:
             time.sleep(SESSION_SWEEP_INTERVAL_SECONDS)
@@ -447,6 +468,7 @@ def start_browser_session_reaper(server: ThreadingHTTPServer) -> None:
 
 
 def terminate_server_process(server: ThreadingHTTPServer, exit_code: int = 0) -> None:
+    # 终止逻辑放在线程里，避免在请求处理线程中直接阻塞退出。
     def worker() -> None:
         try:
             server.shutdown()
@@ -459,6 +481,7 @@ def terminate_server_process(server: ThreadingHTTPServer, exit_code: int = 0) ->
 
 
 def _prompt_config_payload(kind: str) -> dict[str, Any]:
+    # 返回配置文件路径 + 配置内容，前端可直接显示和编辑。
     return {
         "path": project_relative_path_text(prompt_config_path(kind)),
         "config": load_prompt_config(kind),
@@ -466,6 +489,7 @@ def _prompt_config_payload(kind: str) -> dict[str, Any]:
 
 
 def _api_config_payload(kind: str) -> dict[str, Any]:
+    # 返回各 Prompt 子模块对应的运行时 API 配置。
     return {
         "path": project_relative_path_text(api_config_path()),
         "config": load_api_config(kind),
@@ -478,6 +502,7 @@ def _start_job_worker(
     total: int,
     runner: Callable[[JobState], dict[str, Any]],
 ) -> JobState:
+    # 统一的后台任务包装器：负责设置 running 状态、接收 runner 结果并落盘。
     STORE.update(job.id, status="running", started_at=time.time())
 
     def _first_failure_message(failures: list[dict[str, Any]]) -> str:
@@ -490,6 +515,7 @@ def _start_job_worker(
         try:
             result = runner(job)
             final_total = int(result.get("total") or total)
+            # runner 统一返回 items / failures / output_dir / status，这里负责写回最终状态。
             STORE.replace_outputs(job.id, result["items"])
             STORE.replace_failures(job.id, result["failures"])
             status = str(result.get("status") or ("completed" if result["items"] or not result["failures"] else "failed"))
@@ -515,6 +541,7 @@ def _start_job_worker(
 
 
 def start_image_job(payload: dict[str, Any]) -> JobState:
+    # 图片 Prompt 任务：合并前端输入、默认配置和模块配置后交给服务层执行。
     images = list(payload.get("images") or [])
     module_config = load_api_config(IMAGE_PROMPT_KIND)
     output_root = resolve_output_path(
@@ -546,6 +573,7 @@ def start_image_job(payload: dict[str, Any]) -> JobState:
 
 
 def start_image_edit_job(payload: dict[str, Any]) -> JobState:
+    # 图生图 Prompt 任务：逻辑与图片 Prompt 类似，但使用独立配置文件。
     images = list(payload.get("images") or [])
     module_config = load_api_config(IMAGE_EDIT_PROMPT_KIND)
     output_root = resolve_output_path(
@@ -578,6 +606,7 @@ def start_image_edit_job(payload: dict[str, Any]) -> JobState:
 
 
 def start_video_job(payload: dict[str, Any]) -> JobState:
+    # 视频 Prompt 任务：输入通常包含视频和参考图，输出是结构化 Prompt CSV。
     videos = list(payload.get("videos") or [])
     module_config = load_api_config(VIDEO_PROMPT_KIND)
     output_root = resolve_output_path(
@@ -609,6 +638,7 @@ def start_video_job(payload: dict[str, Any]) -> JobState:
 
 
 def start_video_clip_job(payload: dict[str, Any]) -> JobState:
+    # 本地视频剪辑任务：裁切和合并都走这一条入口。
     job = STORE.create(kind="video_clip", total=0)
     get_job_logger(job.id, job.kind).info("Starting video clip job.")
 
@@ -628,6 +658,7 @@ def start_video_clip_job(payload: dict[str, Any]) -> JobState:
 
 
 def start_comfy_generation_job(payload: dict[str, Any]) -> JobState:
+    # Comfy 批跑任务：保留原始 payload，便于失败续跑、仅重跑失败行和跳过成功项续跑。
     job = STORE.create(kind=COMFY_JOB_KIND, total=100)
     STORE.merge_meta(job.id, original_payload=payload)
     get_job_logger(job.id, job.kind).info(
@@ -667,6 +698,7 @@ def start_comfy_generation_job(payload: dict[str, Any]) -> JobState:
 
 
 def _job_output_files(job: JobState) -> list[dict[str, str]]:
+    # 优先返回已经收集到的 Comfy 输出文件；否则退回输出目录扫描。
     files: list[dict[str, str]] = []
     if job.kind == COMFY_JOB_KIND and job.outputs:
         seen: set[str] = set()
@@ -697,6 +729,7 @@ def _job_output_files(job: JobState) -> list[dict[str, str]]:
 
 
 def _resolve_job_output_file(job: JobState, filename: str) -> Path | None:
+    # 文件下载时优先按已收集的结果路径定位，避免同名文件误取。
     if job.kind == COMFY_JOB_KIND and job.outputs:
         for item in job.outputs:
             path_text = str(item.get("path") or "").strip()
@@ -715,6 +748,7 @@ def _resolve_job_output_file(job: JobState, filename: str) -> Path | None:
 
 class LoggedThreadingHTTPServer(ThreadingHTTPServer):
     def handle_error(self, request: Any, client_address: tuple[str, int]) -> None:
+        # 统一捕获未处理异常，写入应用日志，便于排障。
         APP_LOGGER.exception("Unhandled request error. client=%s:%s", client_address[0], client_address[1])
 
 
@@ -738,6 +772,7 @@ class DemoHandler(BaseHTTPRequestHandler):
     def do_GET(self) -> None:  # noqa: N802
         path = urlparse(self.path).path
 
+        # 静态资源入口。
         if path == "/":
             return self._serve_frontend("index.html", "text/html; charset=utf-8")
         if path == "/app.js":
@@ -745,6 +780,7 @@ class DemoHandler(BaseHTTPRequestHandler):
         if path == "/style.css":
             return self._serve_frontend("style.css", "text/css; charset=utf-8")
 
+        # 全局配置接口。
         if path == "/api/config":
             image_api_config = load_api_config(IMAGE_PROMPT_KIND)
             image_edit_api_config = load_api_config(IMAGE_EDIT_PROMPT_KIND)
@@ -773,9 +809,11 @@ class DemoHandler(BaseHTTPRequestHandler):
                 },
             )
 
+        # 视频剪辑预设列表。
         if path == "/api/clip/presets":
             return json_response(self, HTTPStatus.OK, {"presets": list_clip_presets()})
 
+        # Comfy 通信配置与健康检查。
         if path == "/api/comfy/config":
             return json_response(
                 self,
@@ -804,6 +842,7 @@ class DemoHandler(BaseHTTPRequestHandler):
                 return json_response(self, HTTPStatus.SERVICE_UNAVAILABLE, {"online": False, "error": str(exc)})
             return json_response(self, HTTPStatus.OK, payload)
 
+        # Prompt 配置读取接口。
         if path == "/api/prompt-config":
             return json_response(self, HTTPStatus.OK, _prompt_config_payload(IMAGE_PROMPT_KIND))
         if path == f"/api/prompt-config/{IMAGE_PROMPT_KIND}":
@@ -826,6 +865,7 @@ class DemoHandler(BaseHTTPRequestHandler):
                 BROWSER_SESSIONS.snapshot(SESSION_HEARTBEAT_TIMEOUT_SECONDS),
             )
 
+        # 任务文件列表与文件下载接口。
         if path.startswith("/api/jobs/") and path.endswith("/files"):
             job_id = path.split("/")[3]
             job = STORE.get(job_id)
@@ -863,6 +903,7 @@ class DemoHandler(BaseHTTPRequestHandler):
     def do_POST(self) -> None:  # noqa: N802
         path = urlparse(self.path).path
 
+        # 视频剪辑任务提交入口。
         if path == "/api/clip/run":
             payload = read_body_json(self)
             if not str(payload.get("preset") or "").strip():
@@ -870,6 +911,7 @@ class DemoHandler(BaseHTTPRequestHandler):
             job = start_video_clip_job(payload)
             return json_response(self, HTTPStatus.ACCEPTED, {"jobId": job.id, "job": job_snapshot(job)})
 
+        # Comfy 配置保存与任务控制入口。
         if path == "/api/comfy/config":
             payload = read_body_json(self)
             normalized = save_comfy_config(payload.get("config") or {})
@@ -953,6 +995,7 @@ class DemoHandler(BaseHTTPRequestHandler):
             STORE.merge_meta(retry_job.id, retry_of=job_id)
             return json_response(self, HTTPStatus.ACCEPTED, {"jobId": retry_job.id, "job": job_snapshot(retry_job)})
 
+        # Prompt 任务提交入口。
         if path in {"/api/generate", f"/api/generate/{IMAGE_PROMPT_KIND}-prompt"}:
             payload = read_body_json(self)
             images = payload.get("images") or []
@@ -1076,6 +1119,7 @@ class DemoHandler(BaseHTTPRequestHandler):
                 },
             )
 
+        # 浏览器会话接口只负责控制服务生命周期，不保存业务任务。
         if path == "/api/browser-session/register":
             payload = read_body_json(self)
             session_id = str(payload.get("sessionId") or "").strip()
@@ -1163,6 +1207,7 @@ class DemoHandler(BaseHTTPRequestHandler):
 
 
 def main() -> None:
+    # 启动顺序：日志 -> 目录 -> 配置 -> 模板目录 -> HTTP 服务。
     log_paths = setup_logging()
     APP_LOGGER.info("Application startup. date=2026-08-18 log_dir=%s", log_paths.root_dir)
     ensure_dir(default_output_root())

@@ -249,11 +249,11 @@ a001.mp4
 执行时，系统会把 CSV 指向的本地图片和视频复制到 ComfyUI 输入目录：
 
 ```text
-ComfyUI/input/jobs/<prompt_id>/input.png
-ComfyUI/input/jobs/<prompt_id>/source.mp4
+ComfyUI/input/jobs/<prompt_id>/input.<ext>
+ComfyUI/input/jobs/<prompt_id>/source.<ext>
 ```
 
-写进 workflow 的不是 Windows 或 Linux 绝对路径，而是 `jobs/<prompt_id>/...` 相对引用。因此 App 与自托管 ComfyUI 同机或共享可访问文件系统时，视频不会经过浏览器 base64 再投递给 ComfyUI。
+写进 workflow 的不是 Windows 或 Linux 绝对路径，而是 `jobs/<prompt_id>/...` 相对引用。文件名会保留原始扩展名，因此 App 与自托管 ComfyUI 同机或共享可访问文件系统时，视频不会经过浏览器 base64 再投递给 ComfyUI。
 
 ### 6.3 模板与工作流
 

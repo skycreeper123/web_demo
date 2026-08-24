@@ -246,7 +246,7 @@ web_demo/
 - `input_stager.py`
   - 将 CSV 中声明的本地图片 / 视频复制到 Comfy 输入目录
 - `result_collector.py`
-  - 回收输出结果，定位主输出文件
+  - 回收输出结果，优先定位视频主输出文件
 - `path_resolver.py`
   - 解析 Comfy 根目录、输入目录、输出目录、临时目录、工作流目录
 - `__init__.py`
