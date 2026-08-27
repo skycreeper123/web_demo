@@ -1,0 +1,22 @@
+2026-08-26 09:11:40,696 | INFO     | web_demo.app | Logging initialized. log_dir=D:\AIGC\web_demo\logs
+2026-08-26 09:11:40,697 | INFO     | web_demo.app | Application startup. date=2026-08-18 log_dir=D:\AIGC\web_demo\logs
+2026-08-26 09:11:40,777 | INFO     | web_demo.app | Prompt tool demo running at http://127.0.0.1:8000
+2026-08-26 09:11:41,583 | INFO     | web_demo.http | 127.0.0.1:49509 - "GET / HTTP/1.1" 200 -
+2026-08-26 09:11:42,475 | INFO     | web_demo.http | 127.0.0.1:49267 - "GET / HTTP/1.1" 200 -
+2026-08-26 09:11:42,514 | INFO     | web_demo.http | 127.0.0.1:52580 - "GET /app.js HTTP/1.1" 200 -
+2026-08-26 09:11:42,526 | INFO     | web_demo.http | 127.0.0.1:55958 - "GET /style.css HTTP/1.1" 200 -
+2026-08-26 09:11:42,548 | INFO     | web_demo.http | 127.0.0.1:51167 - "POST /api/browser-session/register HTTP/1.1" 200 -
+2026-08-26 09:11:42,642 | INFO     | web_demo.http | 127.0.0.1:56838 - "GET /api/clip/presets HTTP/1.1" 200 -
+2026-08-26 09:11:42,643 | INFO     | web_demo.http | 127.0.0.1:53894 - "GET /favicon.ico HTTP/1.1" 404 -
+2026-08-26 09:11:42,666 | INFO     | web_demo.http | 127.0.0.1:62088 - "GET /api/config HTTP/1.1" 200 -
+2026-08-26 09:11:42,675 | INFO     | web_demo.http | 127.0.0.1:56325 - "GET /api/prompt-config/image HTTP/1.1" 200 -
+2026-08-26 09:11:42,681 | INFO     | web_demo.http | 127.0.0.1:63645 - "GET /api/prompt-config/image_edit HTTP/1.1" 200 -
+2026-08-26 09:11:42,686 | INFO     | web_demo.http | 127.0.0.1:56912 - "GET /api/prompt-config/video HTTP/1.1" 200 -
+2026-08-26 09:11:42,691 | INFO     | web_demo.http | 127.0.0.1:64276 - "GET /api/comfy/config HTTP/1.1" 200 -
+2026-08-26 09:11:42,730 | INFO     | web_demo.http | 127.0.0.1:65428 - "GET /api/comfy/templates HTTP/1.1" 200 -
+2026-08-26 09:11:47,645 | INFO     | web_demo.http | 127.0.0.1:54788 - "POST /api/browser-session/heartbeat HTTP/1.1" 200 -
+2026-08-26 09:11:52,650 | INFO     | web_demo.http | 127.0.0.1:53446 - "POST /api/browser-session/heartbeat HTTP/1.1" 200 -
+2026-08-26 09:11:57,641 | INFO     | web_demo.http | 127.0.0.1:57423 - "POST /api/browser-session/heartbeat HTTP/1.1" 200 -
+2026-08-26 09:11:58,435 | INFO     | web_demo.http | 127.0.0.1:54212 - "POST /api/browser-session/close HTTP/1.1" 200 -
+2026-08-26 09:11:58,468 | INFO     | web_demo.http | 127.0.0.1:51542 - "POST /api/browser-session/close HTTP/1.1" 200 -
+2026-08-26 09:12:00,779 | INFO     | web_demo.app | No active browser sessions and no active jobs. Shutting down server.
