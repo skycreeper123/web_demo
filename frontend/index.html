@@ -920,7 +920,6 @@
                 <select id="comfyPathStyle" class="input">
                   <option value="">自动</option>
                   <option value="windows">windows</option>
-                  <option value="linux">linux</option>
                 </select>
               </label>
               <label>
@@ -941,6 +940,7 @@
               </label>
             </div>
             <div class="toggle-row">
+              <label class="toggle"><input id="comfyLinuxPathEnabled" type="checkbox" /> 使用 Linux 路径模式（支持 `/home/...`、`/mnt/...` 绝对路径）</label>
               <label class="toggle"><input id="comfyWsEnabled" type="checkbox" checked /> 启用 WebSocket 监听</label>
             </div>
           </article>

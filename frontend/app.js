@@ -281,6 +281,7 @@ const els = {
   comfyJobTimeout: document.getElementById("comfyJobTimeout"),
   comfyPollInterval: document.getElementById("comfyPollInterval"),
   comfyWorkflowManifestDir: document.getElementById("comfyWorkflowManifestDir"),
+  comfyLinuxPathEnabled: document.getElementById("comfyLinuxPathEnabled"),
   comfyWsEnabled: document.getElementById("comfyWsEnabled"),
   reloadComfyConfigBtn: document.getElementById("reloadComfyConfigBtn"),
   saveComfyConfigBtn: document.getElementById("saveComfyConfigBtn"),
@@ -1681,7 +1682,7 @@ function getComfyConfigPayload() {
     comfy_input_dir: els.comfyInputDir.value.trim(),
     comfy_output_dir: els.comfyOutputDir.value.trim(),
     temp_dir: els.comfyTempDir.value.trim(),
-    path_style: els.comfyPathStyle.value,
+    path_style: els.comfyLinuxPathEnabled.checked ? "linux" : els.comfyPathStyle.value === "linux" ? "" : els.comfyPathStyle.value,
     request_timeout_sec: Number(els.comfyRequestTimeout.value || 30),
     job_timeout_sec: Number(els.comfyJobTimeout.value || 1800),
     poll_interval_sec: Number(els.comfyPollInterval.value || 2),
@@ -1698,7 +1699,9 @@ function renderComfyConfig(data) {
   els.comfyInputDir.value = data.config?.comfy_input_dir || "";
   els.comfyOutputDir.value = data.config?.comfy_output_dir || "";
   els.comfyTempDir.value = normalizeDisplayPath(data.config?.temp_dir || "");
-  els.comfyPathStyle.value = data.config?.path_style || "";
+  const configuredPathStyle = data.config?.path_style || "";
+  els.comfyPathStyle.value = configuredPathStyle === "linux" ? "" : configuredPathStyle;
+  els.comfyLinuxPathEnabled.checked = configuredPathStyle === "linux";
   els.comfyRequestTimeout.value = String(data.config?.request_timeout_sec ?? 30);
   els.comfyJobTimeout.value = String(data.config?.job_timeout_sec ?? 1800);
   els.comfyPollInterval.value = String(data.config?.poll_interval_sec ?? 2);

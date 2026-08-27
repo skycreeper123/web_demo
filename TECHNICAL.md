@@ -462,6 +462,12 @@ CSV 行优先字段：
 - `ws_enabled`
 - `workflow_manifest_dir`
 
+说明：
+
+- `comfy_root_dir`、`comfy_input_dir`、`comfy_output_dir`、`temp_dir`、`workflow_manifest_dir` 支持绝对路径和相对路径
+- 相对路径默认相对于项目根目录解析
+- 当 `path_style = linux` 时，`/home/...`、`/mnt/...` 等 Linux 绝对路径会按绝对路径处理
+
 ## 8. 后端 API
 
 ### 8.1 静态资源
