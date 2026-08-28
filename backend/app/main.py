@@ -330,7 +330,7 @@ STORE = JobStore()
 
 class BrowserSessionStore:
     def __init__(self) -> None:
-        # 浏览器会话只是用于控制服务生命周期，不参与业务任务状态保存。
+        # 浏览器会话用于前端连接状态记录，不参与业务任务状态保存。
         self._lock = threading.Lock()
         self._sessions: dict[str, float] = {}
         self._had_browser_session = False
@@ -373,7 +373,6 @@ class BrowserSessionStore:
 
 BROWSER_SESSIONS = BrowserSessionStore()
 SESSION_HEARTBEAT_TIMEOUT_SECONDS = 15.0
-SESSION_SWEEP_INTERVAL_SECONDS = 5.0
 
 
 def json_response(handler: BaseHTTPRequestHandler, status: int, payload: Any) -> None:
@@ -453,20 +452,6 @@ def job_snapshot(job: JobState) -> dict[str, Any]:
     return data
 
 
-def start_browser_session_reaper(server: ThreadingHTTPServer) -> None:
-    # 后台定时检查是否还有浏览器会话和活跃任务，满足条件才自动退出。
-    def worker() -> None:
-        while True:
-            time.sleep(SESSION_SWEEP_INTERVAL_SECONDS)
-            snapshot = BROWSER_SESSIONS.snapshot(SESSION_HEARTBEAT_TIMEOUT_SECONDS)
-            if snapshot["had_browser_session"] and snapshot["active_count"] == 0 and not STORE.has_active_jobs():
-                APP_LOGGER.info("No active browser sessions and no active jobs. Shutting down server.")
-                server.shutdown()
-                return
-
-    threading.Thread(target=worker, daemon=True).start()
-
-
 def terminate_server_process(server: ThreadingHTTPServer, exit_code: int = 0) -> None:
     # 终止逻辑放在线程里，避免在请求处理线程中直接阻塞退出。
     def worker() -> None:
@@ -544,12 +529,14 @@ def start_image_job(payload: dict[str, Any]) -> JobState:
     # 图片 Prompt 任务：合并前端输入、默认配置和模块配置后交给服务层执行。
     images = list(payload.get("images") or [])
     module_config = load_api_config(IMAGE_PROMPT_KIND)
+    path_style = str(payload.get("pathStyle") or module_config.get("path_style") or "").strip().lower()
     output_root = resolve_output_path(
         payload.get("outputDir")
         or module_config.get("output_dir")
         or DEFAULTS.image_output_root
         or default_output_root(IMAGE_PROMPT_KIND),
         IMAGE_PROMPT_KIND,
+        path_style=path_style,
     )
     ensure_dir(output_root)
     job = STORE.create(kind=IMAGE_PROMPT_KIND, total=len(images))
@@ -576,12 +563,14 @@ def start_image_edit_job(payload: dict[str, Any]) -> JobState:
     # 图生图 Prompt 任务：逻辑与图片 Prompt 类似，但使用独立配置文件。
     images = list(payload.get("images") or [])
     module_config = load_api_config(IMAGE_EDIT_PROMPT_KIND)
+    path_style = str(payload.get("pathStyle") or module_config.get("path_style") or "").strip().lower()
     output_root = resolve_output_path(
         payload.get("outputDir")
         or module_config.get("output_dir")
         or DEFAULTS.image_edit_output_root
         or default_output_root(IMAGE_EDIT_PROMPT_KIND),
         IMAGE_EDIT_PROMPT_KIND,
+        path_style=path_style,
     )
     ensure_dir(output_root)
     job = STORE.create(kind=IMAGE_EDIT_PROMPT_KIND, total=len(images))
@@ -609,12 +598,14 @@ def start_video_job(payload: dict[str, Any]) -> JobState:
     # 视频 Prompt 任务：输入通常包含视频和参考图，输出是结构化 Prompt CSV。
     videos = list(payload.get("videos") or [])
     module_config = load_api_config(VIDEO_PROMPT_KIND)
+    path_style = str(payload.get("pathStyle") or module_config.get("path_style") or "").strip().lower()
     output_root = resolve_output_path(
         payload.get("outputDir")
         or module_config.get("output_dir")
         or DEFAULTS.video_output_root
         or default_output_root(VIDEO_PROMPT_KIND),
         VIDEO_PROMPT_KIND,
+        path_style=path_style,
     )
     ensure_dir(output_root)
     job = STORE.create(kind=VIDEO_PROMPT_KIND, total=len(videos))
@@ -1222,7 +1213,6 @@ def main() -> None:
     load_prompt_config(IMAGE_EDIT_PROMPT_KIND)
     load_prompt_config(VIDEO_PROMPT_KIND)
     server = LoggedThreadingHTTPServer(("127.0.0.1", 8000), DemoHandler)
-    start_browser_session_reaper(server)
     APP_LOGGER.info("Prompt tool demo running at http://127.0.0.1:8000")
     print("Prompt tool demo running at http://127.0.0.1:8000")
     try:

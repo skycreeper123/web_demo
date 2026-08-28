@@ -6,7 +6,7 @@ from pathlib import Path
 import time
 from typing import Any, Callable
 
-from web_demo.backend.app.core.config import load_comfy_config
+from web_demo.backend.app.core.config import is_absolute_path_text, load_comfy_config, normalize_path_style
 
 from .input_stager import stage_input_files
 from .job_monitor import ComfyJobRegistry, ComfyWebSocketManager
@@ -20,12 +20,15 @@ JOB_REGISTRY = ComfyJobRegistry()
 WS_MANAGER = ComfyWebSocketManager(JOB_REGISTRY)
 
 
-def _resolve_csv_source_path(root_dir: str | None, name: str | None) -> str:
+def _resolve_csv_source_path(root_dir: str | None, name: str | None, *, path_style: str = "") -> str:
     root_text = str(root_dir or "").strip()
     name_text = str(name or "").strip()
     if not root_text or not name_text:
         return ""
-    return str((Path(root_text) / name_text).resolve())
+    root_path = Path(root_text)
+    if is_absolute_path_text(root_text, path_style):
+        return str(root_path / name_text)
+    return str((root_path / name_text).resolve())
 
 
 def _parse_params_json(text: str | None) -> dict[str, Any]:
@@ -38,8 +41,10 @@ def _parse_params_json(text: str | None) -> dict[str, Any]:
     return value
 
 
-def _load_csv_rows(csv_path: str) -> list[dict[str, str]]:
+def _load_csv_rows(csv_path: str, *, path_style: str = "") -> list[dict[str, str]]:
     path = Path(csv_path)
+    if not is_absolute_path_text(csv_path, path_style):
+        path = path.resolve()
     if not path.exists():
         raise RuntimeError(f"CSV 文件不存在：{path}")
     if not path.is_file():
@@ -109,8 +114,17 @@ def _build_row_payload(
     payload: dict[str, Any],
     template_payload: dict[str, Any],
 ) -> dict[str, Any]:
-    image_path = row.get("image_path") or _resolve_csv_source_path(payload.get("imageRootDir"), row.get("image_name"))
-    video_path = row.get("video_path") or _resolve_csv_source_path(payload.get("videoRootDir"), row.get("video_name"))
+    path_style = normalize_path_style(payload.get("pathStyle"))
+    image_path = row.get("image_path") or _resolve_csv_source_path(
+        payload.get("imageRootDir"),
+        row.get("image_name"),
+        path_style=path_style,
+    )
+    video_path = row.get("video_path") or _resolve_csv_source_path(
+        payload.get("videoRootDir"),
+        row.get("video_name"),
+        path_style=path_style,
+    )
     positive_prompt = row.get("positive_prompt") or ""
     negative_prompt = row.get("negative_prompt") or ""
     row_params = _parse_params_json(row.get("params_json"))
@@ -199,6 +213,7 @@ def run_comfy_job(
     config = load_comfy_config()
     timeout_seconds = int(config.get("job_timeout_sec") or 1800)
     poll_interval = max(1, int(config.get("poll_interval_sec") or 2))
+    path_style = normalize_path_style(payload.get("pathStyle") or config.get("path_style"))
     tracker = JOB_REGISTRY.register(job_id)
     client = ComfyServerClient(config)
     csv_path = str(payload.get("csvPath") or "").strip()
@@ -209,7 +224,7 @@ def run_comfy_job(
     health = comfy_health(config)
     update_job(meta={"comfy_health": health})
     log("Loading CSV rows...")
-    rows = _load_csv_rows(csv_path)
+    rows = _load_csv_rows(csv_path, path_style=path_style)
     selected_rows = _select_csv_rows(rows, payload)
     update_job(
         meta={

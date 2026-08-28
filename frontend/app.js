@@ -140,6 +140,7 @@ const els = {
   clipInputDirA: document.getElementById("clipInputDirA"),
   clipInputDirB: document.getElementById("clipInputDirB"),
   clipOutputDir: document.getElementById("clipOutputDir"),
+  clipLinuxPathEnabled: document.getElementById("clipLinuxPathEnabled"),
   startClipBtn: document.getElementById("startClipBtn"),
   refreshClipJobBtn: document.getElementById("refreshClipJobBtn"),
   openClipOutputBtn: document.getElementById("openClipOutputBtn"),
@@ -163,6 +164,7 @@ const els = {
   imageBaseUrl: document.getElementById("imageBaseUrl"),
   imageModel: document.getElementById("imageModel"),
   imageOutputDir: document.getElementById("imageOutputDir"),
+  imageLinuxPathEnabled: document.getElementById("imageLinuxPathEnabled"),
   imageUseMock: document.getElementById("imageUseMock"),
   imageOverwrite: document.getElementById("imageOverwrite"),
   imageModeBadge: document.getElementById("imageModeBadge"),
@@ -198,6 +200,7 @@ const els = {
   imageEditBaseUrl: document.getElementById("imageEditBaseUrl"),
   imageEditModel: document.getElementById("imageEditModel"),
   imageEditOutputDir: document.getElementById("imageEditOutputDir"),
+  imageEditLinuxPathEnabled: document.getElementById("imageEditLinuxPathEnabled"),
   imageEditUseMock: document.getElementById("imageEditUseMock"),
   imageEditOverwrite: document.getElementById("imageEditOverwrite"),
   imageEditModeBadge: document.getElementById("imageEditModeBadge"),
@@ -239,6 +242,7 @@ const els = {
   videoBaseUrl: document.getElementById("videoBaseUrl"),
   videoModel: document.getElementById("videoModel"),
   videoOutputDir: document.getElementById("videoOutputDir"),
+  videoLinuxPathEnabled: document.getElementById("videoLinuxPathEnabled"),
   videoUseMock: document.getElementById("videoUseMock"),
   videoOverwrite: document.getElementById("videoOverwrite"),
   videoModeBadge: document.getElementById("videoModeBadge"),
@@ -371,6 +375,20 @@ function normalizeDisplayPath(value) {
 
 function normalizeLogLines(lines) {
   return (lines || []).map((line) => normalizeDisplayPath(line));
+}
+
+function pathStyleGroupToggles(groupName) {
+  return Array.from(document.querySelectorAll(`input[data-path-style-group="${groupName}"]`));
+}
+
+function setPathStyleGroupChecked(groupName, checked) {
+  pathStyleGroupToggles(groupName).forEach((toggle) => {
+    toggle.checked = checked;
+  });
+}
+
+function isPathStyleGroupChecked(groupName) {
+  return pathStyleGroupToggles(groupName).some((toggle) => toggle.checked);
 }
 
 async function postBrowserSession(path, payload) {
@@ -1331,6 +1349,7 @@ async function startClipJob() {
         inputDirA: els.clipInputDirA.value.trim(),
         inputDirB: els.clipInputDirB.value.trim(),
         outputDir,
+        pathStyle: isPathStyleGroupChecked("clip") ? "linux" : "",
       }),
     });
     const data = await res.json();
@@ -1520,6 +1539,7 @@ function getImageApiConfigPayload() {
     model: els.imageModel.value.trim(),
     output_dir: els.imageOutputDir.value.trim(),
     source_root_dir: els.imageSourceRootDir.value.trim(),
+    path_style: isPathStyleGroupChecked("image") ? "linux" : "",
     use_mock: els.imageUseMock.checked,
     overwrite: els.imageOverwrite.checked,
   };
@@ -1532,6 +1552,7 @@ function getImageEditApiConfigPayload() {
     model: els.imageEditModel.value.trim(),
     output_dir: els.imageEditOutputDir.value.trim(),
     source_root_dir: els.imageEditSourceRootDir.value.trim(),
+    path_style: isPathStyleGroupChecked("imageEdit") ? "linux" : "",
     use_mock: els.imageEditUseMock.checked,
     overwrite: els.imageEditOverwrite.checked,
   };
@@ -1545,6 +1566,7 @@ function getVideoApiConfigPayload() {
     output_dir: els.videoOutputDir.value.trim(),
     video_source_root_dir: els.videoSourceRootDir.value.trim(),
     reference_source_root_dir: els.referenceSourceRootDir.value.trim(),
+    path_style: isPathStyleGroupChecked("video") ? "linux" : "",
     use_mock: els.videoUseMock.checked,
     overwrite: els.videoOverwrite.checked,
   };
@@ -1558,6 +1580,7 @@ function renderImageApiConfig(data) {
   els.imageModel.value = data.config?.model || "";
   els.imageOutputDir.value = normalizeDisplayPath(data.config?.output_dir || "");
   els.imageSourceRootDir.value = data.config?.source_root_dir || "";
+  setPathStyleGroupChecked("image", (data.config?.path_style || "") === "linux");
   els.imageUseMock.checked = data.config?.use_mock ?? true;
   els.imageOverwrite.checked = data.config?.overwrite ?? false;
   els.imageApiKey.placeholder = "直接粘贴 API Key";
@@ -1573,6 +1596,7 @@ function renderImageEditApiConfig(data) {
   els.imageEditModel.value = data.config?.model || "";
   els.imageEditOutputDir.value = normalizeDisplayPath(data.config?.output_dir || "");
   els.imageEditSourceRootDir.value = data.config?.source_root_dir || "";
+  setPathStyleGroupChecked("imageEdit", (data.config?.path_style || "") === "linux");
   els.imageEditUseMock.checked = data.config?.use_mock ?? true;
   els.imageEditOverwrite.checked = data.config?.overwrite ?? false;
   els.imageEditApiKey.placeholder = "直接粘贴 API Key";
@@ -1589,6 +1613,7 @@ function renderVideoApiConfig(data) {
   els.videoOutputDir.value = normalizeDisplayPath(data.config?.output_dir || "");
   els.videoSourceRootDir.value = data.config?.video_source_root_dir || "";
   els.referenceSourceRootDir.value = data.config?.reference_source_root_dir || "";
+  setPathStyleGroupChecked("video", (data.config?.path_style || "") === "linux");
   els.videoUseMock.checked = data.config?.use_mock ?? true;
   els.videoOverwrite.checked = data.config?.overwrite ?? false;
   els.videoApiKey.placeholder = "直接粘贴 API Key";
@@ -1682,7 +1707,7 @@ function getComfyConfigPayload() {
     comfy_input_dir: els.comfyInputDir.value.trim(),
     comfy_output_dir: els.comfyOutputDir.value.trim(),
     temp_dir: els.comfyTempDir.value.trim(),
-    path_style: els.comfyLinuxPathEnabled.checked ? "linux" : els.comfyPathStyle.value === "linux" ? "" : els.comfyPathStyle.value,
+    path_style: isPathStyleGroupChecked("comfy") ? "linux" : els.comfyPathStyle.value === "linux" ? "" : els.comfyPathStyle.value,
     request_timeout_sec: Number(els.comfyRequestTimeout.value || 30),
     job_timeout_sec: Number(els.comfyJobTimeout.value || 1800),
     poll_interval_sec: Number(els.comfyPollInterval.value || 2),
@@ -1701,7 +1726,7 @@ function renderComfyConfig(data) {
   els.comfyTempDir.value = normalizeDisplayPath(data.config?.temp_dir || "");
   const configuredPathStyle = data.config?.path_style || "";
   els.comfyPathStyle.value = configuredPathStyle === "linux" ? "" : configuredPathStyle;
-  els.comfyLinuxPathEnabled.checked = configuredPathStyle === "linux";
+  setPathStyleGroupChecked("comfy", configuredPathStyle === "linux");
   els.comfyRequestTimeout.value = String(data.config?.request_timeout_sec ?? 30);
   els.comfyJobTimeout.value = String(data.config?.job_timeout_sec ?? 1800);
   els.comfyPollInterval.value = String(data.config?.poll_interval_sec ?? 2);
@@ -1777,6 +1802,7 @@ function getComfyRunPayload() {
     csvPath: els.comfyCsvPath.value.trim(),
     imageRootDir: els.comfyImageRootDir.value.trim(),
     videoRootDir: els.comfyVideoRootDir.value.trim(),
+    pathStyle: isPathStyleGroupChecked("comfy") ? "linux" : els.comfyPathStyle.value,
     defaultSeed: seedText ? Number(seedText) : null,
     defaultOutputPrefixBase: els.comfyOutputPrefix.value.trim(),
     defaultParams: parseComfyParamsJson(),
@@ -2083,6 +2109,7 @@ async function startImageGeneration() {
         baseUrl: els.imageBaseUrl.value.trim(),
         model: els.imageModel.value.trim(),
         outputDir: els.imageOutputDir.value.trim(),
+        pathStyle: isPathStyleGroupChecked("image") ? "linux" : "",
         overwrite: els.imageOverwrite.checked,
         useMock: els.imageUseMock.checked,
         promptConfig: {
@@ -2176,6 +2203,7 @@ async function startImageEditGeneration() {
         baseUrl: els.imageEditBaseUrl.value.trim(),
         model: els.imageEditModel.value.trim(),
         outputDir: els.imageEditOutputDir.value.trim(),
+        pathStyle: isPathStyleGroupChecked("imageEdit") ? "linux" : "",
         overwrite: els.imageEditOverwrite.checked,
         useMock: els.imageEditUseMock.checked,
         promptConfig: {
@@ -2479,6 +2507,7 @@ async function startVideoGeneration() {
         baseUrl: els.videoBaseUrl.value.trim(),
         model: els.videoModel.value.trim(),
         outputDir: els.videoOutputDir.value.trim(),
+        pathStyle: isPathStyleGroupChecked("video") ? "linux" : "",
         overwrite: els.videoOverwrite.checked,
         useMock: els.videoUseMock.checked,
         promptConfig: {
@@ -2581,6 +2610,12 @@ function bindEvents() {
     const config = listViewConfig(toggleKey);
     if (!config) return;
     setListExpanded(toggleKey, !config.expanded);
+  });
+
+  document.addEventListener("change", (event) => {
+    const pathStyleToggle = event.target.closest("input[data-path-style-group]");
+    if (!pathStyleToggle) return;
+    setPathStyleGroupChecked(pathStyleToggle.dataset.pathStyleGroup, pathStyleToggle.checked);
   });
 
   els.imageInput.addEventListener("change", () => {
@@ -2738,8 +2773,6 @@ function bindEvents() {
   });
   els.openVideoOutputBtn.addEventListener("click", openVideoOutput);
 
-  window.addEventListener("pagehide", closeBrowserSession);
-  window.addEventListener("beforeunload", closeBrowserSession);
 }
 
 async function init() {

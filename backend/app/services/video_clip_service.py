@@ -7,7 +7,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Callable
 
-from web_demo.backend.app.core.config import resolve_output_path
+from web_demo.backend.app.core.config import is_absolute_path_text, resolve_output_path
 from web_demo.backend.app.utils.file_writer import ensure_dir, write_json
 
 try:
@@ -193,12 +193,12 @@ def list_clip_presets() -> list[dict[str, Any]]:
     ]
 
 
-def _resolve_input_dir(value: str) -> Path:
+def _resolve_input_dir(value: str, *, path_style: str = "") -> Path:
     text = str(value or "").strip()
     if not text:
         raise RuntimeError("请输入输入目录路径。")
     path = Path(text).expanduser()
-    if not path.is_absolute():
+    if not is_absolute_path_text(text, path_style):
         path = (Path.cwd() / path).resolve()
     if not path.exists():
         raise RuntimeError(f"找不到输入目录：{path}")
@@ -581,7 +581,8 @@ def run_video_clip_job(
     if not preset:
         raise RuntimeError("请选择有效的剪辑预设。")
 
-    output_root = resolve_output_path(str(payload.get("outputDir") or "").strip() or None)
+    path_style = str(payload.get("pathStyle") or "").strip().lower()
+    output_root = resolve_output_path(str(payload.get("outputDir") or "").strip() or None, path_style=path_style)
     ensure_dir(output_root)
     job_dir = _create_timestamp_output_dir(output_root)
     preset_dir = ensure_dir(job_dir / preset.output_dir_name)
@@ -590,8 +591,8 @@ def run_video_clip_job(
     log(f"输出目录：{job_dir}")
 
     if preset.mode == "merge_pairwise":
-        source_dir_a = _resolve_input_dir(str(payload.get("inputDirA") or ""))
-        source_dir_b = _resolve_input_dir(str(payload.get("inputDirB") or ""))
+        source_dir_a = _resolve_input_dir(str(payload.get("inputDirA") or ""), path_style=path_style)
+        source_dir_b = _resolve_input_dir(str(payload.get("inputDirB") or ""), path_style=path_style)
         videos_a = _list_videos(source_dir_a)
         videos_b = _list_videos(source_dir_b)
         if not videos_a:
@@ -690,7 +691,7 @@ def run_video_clip_job(
             "summary_file": str(job_dir / "summary.csv"),
         }
 
-    source_dir = _resolve_input_dir(str(payload.get("inputDir") or ""))
+    source_dir = _resolve_input_dir(str(payload.get("inputDir") or ""), path_style=path_style)
     result = _process_single_preset(
         preset=preset,
         source_dir=source_dir,

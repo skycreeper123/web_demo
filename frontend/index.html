@@ -191,6 +191,9 @@
               <span>图片 URL（每行一条，可写 `文件名 | URL`）</span>
               <textarea id="imageUrlInput" class="textarea" spellcheck="false" placeholder="demo.png | https://example.com/demo.png&#10;https://example.com/another-image.jpg"></textarea>
             </label>
+            <div class="toggle-row">
+              <label class="toggle"><input data-path-style-group="image" type="checkbox" checked /> 使用 Linux 路径模式（支持 `/data/...`、`/home/...` 绝对路径）</label>
+            </div>
             <p class="panel-note">选择文件夹时会优先用“源目录 + 相对路径”生成 CSV 完整路径；拖拽散文件时会回退为“源目录 + 文件名”。</p>
           </article>
 
@@ -230,6 +233,7 @@
               </label>
             </div>
             <div class="toggle-row">
+              <label class="toggle"><input id="imageLinuxPathEnabled" data-path-style-group="image" type="checkbox" checked /> 使用 Linux 路径模式（支持 `/data/...`、`/home/...` 绝对路径）</label>
               <label class="toggle"><input id="imageUseMock" type="checkbox" checked /> 无 Key 时启用 mock</label>
               <label class="toggle"><input id="imageOverwrite" type="checkbox" /> 覆盖已有结果</label>
             </div>
@@ -361,6 +365,9 @@
               <span>图片 URL（每行一条，可写 `文件名 | URL`）</span>
               <textarea id="imageEditUrlInput" class="textarea" spellcheck="false" placeholder="demo.png | https://example.com/demo.png&#10;https://example.com/another-image.jpg"></textarea>
             </label>
+            <div class="toggle-row">
+              <label class="toggle"><input data-path-style-group="imageEdit" type="checkbox" checked /> 使用 Linux 路径模式（支持 `/data/...`、`/home/...` 绝对路径）</label>
+            </div>
             <p class="panel-note">选择文件夹时会优先用“源目录 + 相对路径”生成 CSV 完整路径；拖拽散文件时会回退为“源目录 + 文件名”。</p>
           </article>
 
@@ -400,6 +407,7 @@
               </label>
             </div>
             <div class="toggle-row">
+              <label class="toggle"><input id="imageEditLinuxPathEnabled" data-path-style-group="imageEdit" type="checkbox" checked /> 使用 Linux 路径模式（支持 `/data/...`、`/home/...` 绝对路径）</label>
               <label class="toggle"><input id="imageEditUseMock" type="checkbox" checked /> 无 Key 时启用 mock</label>
               <label class="toggle"><input id="imageEditOverwrite" type="checkbox" /> 覆盖已有结果</label>
             </div>
@@ -531,6 +539,9 @@
               <span>视频 URL（每行一条，可写 `文件名 | URL`）</span>
               <textarea id="videoUrlInput" class="textarea" spellcheck="false" placeholder="a001.mp4 | https://example.com/a001.mp4&#10;https://example.com/a002.mov"></textarea>
             </label>
+            <div class="toggle-row">
+              <label class="toggle"><input data-path-style-group="video" type="checkbox" checked /> 使用 Linux 路径模式（支持 `/data/...`、`/home/...` 绝对路径）</label>
+            </div>
           </article>
 
           <article class="card panel">
@@ -555,6 +566,9 @@
               <span>参考图 URL（每行一条，可写 `文件名 | URL`）</span>
               <textarea id="referenceUrlInput" class="textarea" spellcheck="false" placeholder="a001.png | https://example.com/a001.png&#10;a001_1.png | https://example.com/a001_1.png"></textarea>
             </label>
+            <div class="toggle-row">
+              <label class="toggle"><input data-path-style-group="video" type="checkbox" checked /> 使用 Linux 路径模式（支持 `/data/...`、`/home/...` 绝对路径）</label>
+            </div>
             <p class="panel-note">选择文件夹时会优先用“源目录 + 相对路径”生成 CSV 完整路径；拖拽散文件时会回退为“源目录 + 文件名”。</p>
           </article>
 
@@ -608,6 +622,7 @@
               </label>
             </div>
             <div class="toggle-row">
+              <label class="toggle"><input id="videoLinuxPathEnabled" data-path-style-group="video" type="checkbox" checked /> 使用 Linux 路径模式（支持 `/data/...`、`/home/...` 绝对路径）</label>
               <label class="toggle"><input id="videoUseMock" type="checkbox" checked /> 无 Key 时启用 mock</label>
               <label class="toggle"><input id="videoOverwrite" type="checkbox" /> 覆盖已有结果</label>
             </div>
@@ -786,6 +801,9 @@
                 <input id="clipInputDirB" class="input" type="text" placeholder="D:\videos\input_folder_b" />
               </label>
             </div>
+            <div class="toggle-row">
+              <label class="toggle"><input data-path-style-group="clip" type="checkbox" checked /> 使用 Linux 路径模式（支持 `/data/...`、`/home/...` 绝对路径）</label>
+            </div>
             <p class="panel-note">后端直接读取本地目录。</p>
           </article>
 
@@ -800,6 +818,9 @@
               <span>结果根目录</span>
               <input id="clipOutputDir" class="input" type="text" placeholder="output\video_clip" />
             </label>
+            <div class="toggle-row">
+              <label class="toggle"><input id="clipLinuxPathEnabled" data-path-style-group="clip" type="checkbox" checked /> 使用 Linux 路径模式（支持 `/data/...`、`/home/...` 绝对路径）</label>
+            </div>
             <p class="panel-note">每次运行都会新建目录。</p>
           </article>
         </aside>
@@ -940,7 +961,7 @@
               </label>
             </div>
             <div class="toggle-row">
-              <label class="toggle"><input id="comfyLinuxPathEnabled" type="checkbox" /> 使用 Linux 路径模式（支持 `/home/...`、`/mnt/...` 绝对路径）</label>
+              <label class="toggle"><input id="comfyLinuxPathEnabled" data-path-style-group="comfy" type="checkbox" checked /> 使用 Linux 路径模式（支持 `/home/...`、`/mnt/...` 绝对路径）</label>
               <label class="toggle"><input id="comfyWsEnabled" type="checkbox" checked /> 启用 WebSocket 监听</label>
             </div>
           </article>
@@ -1003,6 +1024,9 @@
                 <span>视频根目录（可选）</span>
                 <input id="comfyVideoRootDir" class="input" type="text" placeholder="D:/dataset/videos" />
               </label>
+            </div>
+            <div class="toggle-row">
+              <label class="toggle"><input data-path-style-group="comfy" type="checkbox" checked /> 使用 Linux 路径模式（支持 `/home/...`、`/mnt/...` 绝对路径）</label>
             </div>
             <p class="panel-note">CSV 推荐列：`image_path,video_path,positive_prompt,negative_prompt,seed,output_prefix,params_json`。如果只有 `image_name` / `video_name`，请同时填写对应根目录。</p>
           </article>

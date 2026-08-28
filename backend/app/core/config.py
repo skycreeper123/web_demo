@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import json
+import ntpath
 import os
+import posixpath
 import re
 from dataclasses import dataclass
 from pathlib import Path
@@ -51,6 +53,25 @@ def default_output_root_text(kind: str | None = None) -> str:
     return project_relative_path_text(default_output_root(kind))
 
 
+def normalize_path_style(value: Any) -> str:
+    style = str(value or "").strip().lower()
+    return style if style in {"", "windows", "linux"} else ""
+
+
+def is_absolute_path_text(value: str | None, path_style: str | None = None) -> bool:
+    text = str(value or "").strip()
+    if not text:
+        return False
+    if Path(text).is_absolute():
+        return True
+    style = normalize_path_style(path_style)
+    if style == "linux":
+        return posixpath.isabs(text.replace("\\", "/"))
+    if style == "windows":
+        return ntpath.isabs(text)
+    return False
+
+
 def _normalize_relative_output_dir_text(text: str) -> str:
     normalized = Path(text).as_posix().strip()
     normalized = normalized.lstrip("./")
@@ -70,13 +91,15 @@ def _normalize_relative_output_dir_text(text: str) -> str:
     return normalized
 
 
-def _normalize_output_path_text(value: str | None) -> str:
+def _normalize_output_path_text(value: str | None, path_style: str | None = None) -> str:
     text = str(value or "").strip()
     if not text:
         return ""
     path = Path(text)
-    if not path.is_absolute():
+    if not is_absolute_path_text(text, path_style):
         return _normalize_relative_output_dir_text(path.as_posix())
+    if not path.is_absolute():
+        return text.replace("\\", "/") if normalize_path_style(path_style) == "linux" else str(path).replace("\\", "/")
     resolved = path.resolve()
     lowered_parts = [part.lower() for part in resolved.parts]
     if "backend" in lowered_parts:
@@ -89,16 +112,16 @@ def _normalize_output_path_text(value: str | None) -> str:
             return _normalize_relative_output_dir_text(resolved.relative_to(base).as_posix())
         except ValueError:
             continue
-    return str(path)
+    return str(path).replace("\\", "/")
 
 
-def resolve_output_path(value: str | None, kind: str | None = None) -> Path:
+def resolve_output_path(value: str | None, kind: str | None = None, path_style: str | None = None) -> Path:
     text = str(value or "").strip()
     if not text:
         return default_output_root(kind)
+    if is_absolute_path_text(text, path_style):
+        return Path(text).expanduser()
     path = Path(text)
-    if path.is_absolute():
-        return path
     normalized = _normalize_relative_output_dir_text(path.as_posix())
     return (project_root() / normalized).resolve()
 
@@ -469,6 +492,7 @@ def default_api_config(kind: str | None = None) -> dict[str, Any]:
             "model": model,
             "output_dir": default_output_root_text(IMAGE_PROMPT_KIND),
             "source_root_dir": "",
+            "path_style": "linux",
             "use_mock": True,
             "overwrite": False,
         },
@@ -478,6 +502,7 @@ def default_api_config(kind: str | None = None) -> dict[str, Any]:
             "model": model,
             "output_dir": default_output_root_text(IMAGE_EDIT_PROMPT_KIND),
             "source_root_dir": "",
+            "path_style": "linux",
             "use_mock": True,
             "overwrite": False,
         },
@@ -488,6 +513,7 @@ def default_api_config(kind: str | None = None) -> dict[str, Any]:
             "output_dir": default_output_root_text(VIDEO_PROMPT_KIND),
             "video_source_root_dir": "",
             "reference_source_root_dir": "",
+            "path_style": "linux",
             "use_mock": True,
             "overwrite": False,
         },
@@ -526,20 +552,35 @@ def _merge_api_config(config: dict[str, Any] | None) -> dict[str, Any]:
         IMAGE_EDIT_PROMPT_KIND: _merge_dict(defaults[IMAGE_EDIT_PROMPT_KIND], raw.get(IMAGE_EDIT_PROMPT_KIND)),
         VIDEO_PROMPT_KIND: _merge_dict(defaults[VIDEO_PROMPT_KIND], raw.get(VIDEO_PROMPT_KIND)),
     }
-    merged[IMAGE_PROMPT_KIND]["output_dir"] = _normalize_output_path_text(merged[IMAGE_PROMPT_KIND].get("output_dir"))
-    merged[IMAGE_PROMPT_KIND]["source_root_dir"] = _normalize_output_path_text(merged[IMAGE_PROMPT_KIND].get("source_root_dir"))
+    for kind in (IMAGE_PROMPT_KIND, IMAGE_EDIT_PROMPT_KIND, VIDEO_PROMPT_KIND):
+        merged[kind]["path_style"] = normalize_path_style(merged[kind].get("path_style"))
+    merged[IMAGE_PROMPT_KIND]["output_dir"] = _normalize_output_path_text(
+        merged[IMAGE_PROMPT_KIND].get("output_dir"),
+        merged[IMAGE_PROMPT_KIND].get("path_style"),
+    )
+    merged[IMAGE_PROMPT_KIND]["source_root_dir"] = _normalize_output_path_text(
+        merged[IMAGE_PROMPT_KIND].get("source_root_dir"),
+        merged[IMAGE_PROMPT_KIND].get("path_style"),
+    )
     merged[IMAGE_EDIT_PROMPT_KIND]["output_dir"] = _normalize_output_path_text(
-        merged[IMAGE_EDIT_PROMPT_KIND].get("output_dir")
+        merged[IMAGE_EDIT_PROMPT_KIND].get("output_dir"),
+        merged[IMAGE_EDIT_PROMPT_KIND].get("path_style"),
     )
     merged[IMAGE_EDIT_PROMPT_KIND]["source_root_dir"] = _normalize_output_path_text(
-        merged[IMAGE_EDIT_PROMPT_KIND].get("source_root_dir")
+        merged[IMAGE_EDIT_PROMPT_KIND].get("source_root_dir"),
+        merged[IMAGE_EDIT_PROMPT_KIND].get("path_style"),
     )
-    merged[VIDEO_PROMPT_KIND]["output_dir"] = _normalize_output_path_text(merged[VIDEO_PROMPT_KIND].get("output_dir"))
+    merged[VIDEO_PROMPT_KIND]["output_dir"] = _normalize_output_path_text(
+        merged[VIDEO_PROMPT_KIND].get("output_dir"),
+        merged[VIDEO_PROMPT_KIND].get("path_style"),
+    )
     merged[VIDEO_PROMPT_KIND]["video_source_root_dir"] = _normalize_output_path_text(
-        merged[VIDEO_PROMPT_KIND].get("video_source_root_dir")
+        merged[VIDEO_PROMPT_KIND].get("video_source_root_dir"),
+        merged[VIDEO_PROMPT_KIND].get("path_style"),
     )
     merged[VIDEO_PROMPT_KIND]["reference_source_root_dir"] = _normalize_output_path_text(
-        merged[VIDEO_PROMPT_KIND].get("reference_source_root_dir")
+        merged[VIDEO_PROMPT_KIND].get("reference_source_root_dir"),
+        merged[VIDEO_PROMPT_KIND].get("path_style"),
     )
     for key, value in raw.items():
         if key not in merged:
@@ -590,12 +631,25 @@ def save_api_config(kind: str, config: dict[str, Any]) -> dict[str, Any]:
     path.parent.mkdir(parents=True, exist_ok=True)
     current = load_api_config()
     current[kind] = _merge_dict(default_api_config(kind), config if isinstance(config, dict) else {})
-    current[kind]["output_dir"] = _normalize_output_path_text(current[kind].get("output_dir"))
+    current[kind]["path_style"] = normalize_path_style(current[kind].get("path_style"))
+    current[kind]["output_dir"] = _normalize_output_path_text(
+        current[kind].get("output_dir"),
+        current[kind].get("path_style"),
+    )
     if kind in {IMAGE_PROMPT_KIND, IMAGE_EDIT_PROMPT_KIND}:
-        current[kind]["source_root_dir"] = _normalize_output_path_text(current[kind].get("source_root_dir"))
+        current[kind]["source_root_dir"] = _normalize_output_path_text(
+            current[kind].get("source_root_dir"),
+            current[kind].get("path_style"),
+        )
     if kind == VIDEO_PROMPT_KIND:
-        current[kind]["video_source_root_dir"] = _normalize_output_path_text(current[kind].get("video_source_root_dir"))
-        current[kind]["reference_source_root_dir"] = _normalize_output_path_text(current[kind].get("reference_source_root_dir"))
+        current[kind]["video_source_root_dir"] = _normalize_output_path_text(
+            current[kind].get("video_source_root_dir"),
+            current[kind].get("path_style"),
+        )
+        current[kind]["reference_source_root_dir"] = _normalize_output_path_text(
+            current[kind].get("reference_source_root_dir"),
+            current[kind].get("path_style"),
+        )
     path.write_text(json.dumps(current, ensure_ascii=False, indent=2), encoding="utf-8")
     return dict(current[kind])
 
@@ -607,7 +661,7 @@ def default_comfy_config() -> dict[str, Any]:
         "comfy_input_dir": "",
         "comfy_output_dir": "",
         "temp_dir": "output/comfy_temp",
-        "path_style": "",
+        "path_style": "linux",
         "request_timeout_sec": 30,
         "job_timeout_sec": 1800,
         "poll_interval_sec": 2,

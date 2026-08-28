@@ -5,6 +5,7 @@
     "model": "gemini-3.6-flash",
     "output_dir": "output",
     "source_root_dir": "",
+    "path_style": "linux",
     "use_mock": false,
     "overwrite": false
   },
@@ -14,6 +15,7 @@
     "model": "gemini-3.6-flash",
     "output_dir": "output",
     "source_root_dir": "",
+    "path_style": "linux",
     "use_mock": true,
     "overwrite": false
   },
@@ -24,6 +26,7 @@
     "output_dir": "output",
     "video_source_root_dir": "",
     "reference_source_root_dir": "",
+    "path_style": "linux",
     "use_mock": false,
     "overwrite": false
   }
