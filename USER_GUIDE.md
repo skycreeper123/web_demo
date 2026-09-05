@@ -581,7 +581,7 @@ Linux:
 
 ### 为什么 Linux 下目录选择体验不一致
 
-因为前端使用了 `webkitdirectory`。
+因为浏览器对目录选择属性的支持存在差异。前端同时使用 `webkitdirectory`、`directory` 和 `mozdirectory`，以兼容 Linux 下常见的 Chrome、Edge 和 Firefox。
 
 建议：
 

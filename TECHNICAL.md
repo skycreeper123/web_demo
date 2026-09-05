@@ -626,7 +626,7 @@ CSV 行优先字段：
 - Comfy workflow 中写入的是逻辑相对引用，不是 App 原始绝对路径
 - `open-output` 在 Windows 下走 `os.startfile`
 - `open-output` 在 Linux 下走 `xdg-open`
-- 浏览器目录选择依赖 `webkitdirectory`
+- 浏览器目录选择同时声明 `webkitdirectory`、`directory` 和 `mozdirectory`，兼容 Linux 下常见浏览器，并保留目录内的相对路径
 
 ## 11. 已知限制
 
