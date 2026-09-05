@@ -2070,6 +2070,36 @@ function bindDropzone(dropzone, input, onFiles) {
   ["dragleave", "drop"].forEach((eventName) => {
     dropzone.addEventListener(eventName, () => dropzone.classList.remove("dragover"));
   });
+  // Chromium on Linux can expose a directory picker that reliably traverses
+  // nested folders, while older browsers continue to use the input fallback.
+  dropzone.addEventListener("click", async (event) => {
+    if (event.target === input || typeof window.showDirectoryPicker !== "function") return;
+    event.preventDefault();
+    event.stopPropagation();
+    try {
+      const root = await window.showDirectoryPicker({ mode: "read" });
+      const files = [];
+      async function walk(directory, relativePrefix = "") {
+        for await (const entry of directory.values()) {
+          const relativePath = relativePrefix ? `${relativePrefix}/${entry.name}` : entry.name;
+          if (entry.kind === "file") {
+            const file = await entry.getFile();
+            Object.defineProperty(file, "webkitRelativePath", { value: relativePath });
+            files.push(file);
+          } else if (entry.kind === "directory") {
+            await walk(entry, relativePath);
+          }
+        }
+      }
+      await walk(root, root.name);
+      const dataTransfer = new DataTransfer();
+      files.forEach((file) => dataTransfer.items.add(file));
+      input.files = dataTransfer.files;
+      onFiles(files);
+    } catch (error) {
+      if (error?.name !== "AbortError") console.error("Directory selection failed", error);
+    }
+  });
   dropzone.addEventListener("drop", (event) => {
     const dt = new DataTransfer();
     Array.from(event.dataTransfer.files || []).forEach((file) => dt.items.add(file));
